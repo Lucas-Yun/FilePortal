@@ -1,0 +1,6 @@
+<!-- link.svg : link 图标
+     想换图标就直接改这个文件（保持 24x24 的 viewBox），保存后刷新网页即可，不用重启。 -->
+<!-- 颜色 #2c7be5，想换颜色把下面的 fill 值改掉就行 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+<path d="M9.6 14.4l4.8-4.8" stroke="#2c7be5" stroke-width="2" stroke-linecap="round"/><path d="M12.6 7.4l1.6-1.6a4.2 4.2 0 0 1 6 6l-1.7 1.7M11.4 16.6l-1.6 1.6a4.2 4.2 0 0 1-6-6l1.7-1.7" stroke="#2c7be5" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+</svg>

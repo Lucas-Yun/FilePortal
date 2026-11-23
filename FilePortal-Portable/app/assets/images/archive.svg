@@ -1,0 +1,6 @@
+<!-- archive.svg : archive 图标
+     想换图标就直接改这个文件（保持 24x24 的 viewBox），保存后刷新网页即可，不用重启。 -->
+<!-- 颜色 #8a6d3b，想换颜色把下面的 fill 值改掉就行 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+<path d="M4 7.2h16v11.3A2.5 2.5 0 0 1 17.5 21h-11A2.5 2.5 0 0 1 4 18.5z" fill="#8a6d3b"/><path d="M3.2 4.2h17.6v3.4H3.2z" fill="#8a6d3b" opacity=".8"/><g fill="#fff"><rect x="10.6" y="9.4" width="2.8" height="2.2" rx=".5"/><rect x="10.6" y="12.8" width="2.8" height="2.2" rx=".5"/><rect x="10.6" y="16.2" width="2.8" height="2.6" rx=".5"/></g>
+</svg>

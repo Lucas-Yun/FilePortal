@@ -1,0 +1,6 @@
+<!-- code.svg : code 图标
+     想换图标就直接改这个文件（保持 24x24 的 viewBox），保存后刷新网页即可，不用重启。 -->
+<!-- 颜色 #0b7285，想换颜色把下面的 fill 值改掉就行 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+<path d="M5 2h14a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#0b7285"/><path d="M9.8 8.6L7 12l2.8 3.4M14.2 8.6L17 12l-2.8 3.4" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/>
+</svg>

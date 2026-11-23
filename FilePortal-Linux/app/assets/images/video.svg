@@ -1,0 +1,6 @@
+<!-- video.svg : video 图标
+     想换图标就直接改这个文件（保持 24x24 的 viewBox），保存后刷新网页即可，不用重启。 -->
+<!-- 颜色 #e0473a，想换颜色把下面的 fill 值改掉就行 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+<rect x="2.6" y="5" width="18.8" height="14" rx="2.8" fill="#e0473a"/><path d="M9.8 9.1v5.8l5.2-2.9z" fill="#fff"/>
+</svg>

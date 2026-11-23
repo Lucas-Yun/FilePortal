@@ -1,0 +1,6 @@
+<!-- share.svg : share 图标（复制下载/打包直链）
+     想换图标就直接改这个文件（保持 24x24 的 viewBox），保存后刷新网页即可，不用重启。 -->
+<!-- 界面图标：颜色跟随按钮文字（currentColor） -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+<circle cx="18" cy="5.5" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="18.5" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8.9 10.4 15.2 7.1M8.9 13.6 15.2 16.9" stroke="currentColor" stroke-width="2"/>
+</svg>

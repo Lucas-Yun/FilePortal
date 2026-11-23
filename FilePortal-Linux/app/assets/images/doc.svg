@@ -1,0 +1,6 @@
+<!-- doc.svg : doc 图标
+     想换图标就直接改这个文件（保持 24x24 的 viewBox），保存后刷新网页即可，不用重启。 -->
+<!-- 颜色 #2b579a，想换颜色把下面的 fill 值改掉就行 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+<path d="M6 2h7.5L19 7.5V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#2b579a"/><path d="M13.5 2L19 7.5h-5.5z" fill="#fff" opacity=".85"/><g fill="#fff"><rect x="7" y="11.6" width="8.6" height="1.7" rx=".85"/><rect x="7" y="15.2" width="6" height="1.7" rx=".85"/></g>
+</svg>
