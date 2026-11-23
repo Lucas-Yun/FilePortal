@@ -1,0 +1,10 @@
+# 默认由仓库维护者审查所有改动。
+* @Lucas-Yun
+
+# 核心服务、构建与安全相关文件需要重点审查。
+/.github/ @Lucas-Yun
+/FilePortal/app/server/ @Lucas-Yun
+/FilePortal-Portable/app/server/ @Lucas-Yun
+/FilePortal-Linux/app/server/ @Lucas-Yun
+/SECURITY.md @Lucas-Yun
+/LICENSE @Lucas-Yun

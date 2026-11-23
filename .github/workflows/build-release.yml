@@ -23,9 +23,13 @@ jobs:
             "https://aka.doubaocdn.com/s/oYmVPkRYz9" -o /tmp/fileportal-source.zip
           unzip -q /tmp/fileportal-source.zip -d /tmp/fileportal-source
           rm -rf /tmp/fileportal-source/.github
-      - name: Copy source into repository
+      - name: Copy application source into repository
         run: |
-          cp -a /tmp/fileportal-source/. .
+          # Only refresh the three application trees. Repository-level docs,
+          # security policy, license, and .github metadata are maintained here.
+          cp -a /tmp/fileportal-source/FilePortal .
+          cp -a /tmp/fileportal-source/FilePortal-Portable .
+          cp -a /tmp/fileportal-source/FilePortal-Linux .
       - name: Commit imported source only
         run: |
           git config user.name "Lucas-Yun"

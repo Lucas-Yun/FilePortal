@@ -4,9 +4,12 @@
 把本机或服务器上的一个目录映射成网页文件库，支持多角色访问、上传下载、在线预览、批量打包、回收站、云空间账号和后台管理。
 
 [![Release](https://img.shields.io/github/v/release/Lucas-Yun/FilePortal?display_name=tag)](https://github.com/Lucas-Yun/FilePortal/releases/latest)
+[![Build](https://github.com/Lucas-Yun/FilePortal/actions/workflows/build-release.yml/badge.svg)](https://github.com/Lucas-Yun/FilePortal/actions/workflows/build-release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11%20%7C%20Linux-555.svg)]()
+[![Security Policy](https://img.shields.io/badge/security-policy-0f6fbd.svg)](SECURITY.md)
+[![Contributions](https://img.shields.io/badge/contributions-welcome-2ea44f.svg)](CONTRIBUTING.md)
 
 > **下载成品**
 > - Windows 10 / 11（x64）单文件版：[FilePortal-Windows-x64.exe](https://github.com/Lucas-Yun/FilePortal/releases/latest/download/FilePortal-Windows-x64.exe)
@@ -32,6 +35,11 @@
 - [常见问题](#常见问题)
 - [项目结构](#项目结构)
 - [开发与构建](#开发与构建)
+- [参与贡献](#参与贡献)
+- [安全政策](#安全政策)
+- [行为准则](#行为准则)
+- [支持与帮助](#支持与帮助)
+- [变更日志](#变更日志)
 - [License](#license)
 
 ---
@@ -407,9 +415,16 @@ FilePortal/
 │     ├─ console.py
 │     └─ server/
 ├─ .github/workflows/          # Windows EXE / Linux ZIP 自动构建
+├─ .github/ISSUE_TEMPLATE/     # Bug 与功能建议表单
+├─ .github/pull_request_template.md
+├─ .github/dependabot.yml
 ├─ README.md
-├─ LICENSE
+├─ CONTRIBUTING.md
+├─ CODE_OF_CONDUCT.md
 ├─ SECURITY.md
+├─ SUPPORT.md
+├─ CHANGELOG.md
+├─ LICENSE
 └─ .gitignore
 ```
 
@@ -468,8 +483,36 @@ FilePortal is a self-hosted, lightweight file portal written in pure Python. It 
 
 Three editions are provided: Windows source, Windows portable single-file EXE, and Linux source with a launcher script. Download the latest Windows EXE or Linux ZIP from [Releases](https://github.com/Lucas-Yun/FilePortal/releases/latest). The default login is `Admin / ChangeMe_Admin`; change it before exposing the service. See the Chinese sections above for full setup, configuration, and security guidance.
 
+## 参与贡献
+
+欢迎提交 Bug 修复、文档改进和经过讨论的功能建议。开发环境、代码规范、测试清单、PR 流程和隐私要求见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+- 安全漏洞不要公开提 Issue，请按 [SECURITY.md](SECURITY.md) 私密报告；
+- 参与讨论和提交代码前，请阅读 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)；
+- 使用问题、支持范围和商业使用说明见 [SUPPORT.md](SUPPORT.md)。
+
+## 安全政策
+
+安全模型、支持版本、私密报告渠道、协调披露、安全港、供应链和部署边界见 [SECURITY.md](SECURITY.md)。
+
+公开部署至少应修改默认密码、使用 HTTPS 反向代理、限制投射目录、定期备份，并避免把真实配置、账号、名单、证书和日志提交到仓库。
+
+## 行为准则
+
+本项目采用 Contributor Covenant 2.1 的社区行为规范。参与项目即表示同意遵守 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。
+
+## 支持与帮助
+
+社区支持以文档和公开 Issue 为主，不提供针对个人生产环境的远程代维或商业 SLA。详见 [SUPPORT.md](SUPPORT.md)。
+
+## 变更日志
+
+版本变更、修复和安全相关调整记录在 [CHANGELOG.md](CHANGELOG.md)。
+
 ## License
 
 [MIT](LICENSE)
+
+Copyright (c) 2026 Lucas-Yun and FilePortal contributors.
 
 FilePortal is provided “as is”, without warranty of any kind. You are responsible for the data you expose, the network you bind to, and the permissions you grant.
