@@ -1,0 +1,6 @@
+<!-- design.svg : design 图标
+     想换图标就直接改这个文件（保持 24x24 的 viewBox），保存后刷新网页即可，不用重启。 -->
+<!-- 颜色 #c2185b，想换颜色把下面的 fill 值改掉就行 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+<path d="M14.2 2.6l7.2 7.2-3.2 3.2-7.2-7.2z" fill="#c2185b"/><path d="M10 6.8l7.2 7.2-8.6 8.6H2.4v-6.4z" fill="#c2185b" opacity=".85"/>
+</svg>

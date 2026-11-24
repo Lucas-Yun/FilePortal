@@ -1,0 +1,6 @@
+<!-- disc.svg : disc 图标
+     想换图标就直接改这个文件（保持 24x24 的 viewBox），保存后刷新网页即可，不用重启。 -->
+<!-- 颜色 #546e7a，想换颜色把下面的 fill 值改掉就行 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="9.6" fill="#546e7a"/><circle cx="12" cy="12" r="3" fill="#fff"/>
+</svg>

@@ -1,0 +1,6 @@
+<!-- image.svg : image 图标
+     想换图标就直接改这个文件（保持 24x24 的 viewBox），保存后刷新网页即可，不用重启。 -->
+<!-- 颜色 #0f97a5，想换颜色把下面的 fill 值改掉就行 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+<rect x="3" y="4.6" width="18" height="14.8" rx="2.4" fill="#0f97a5"/><circle cx="8.2" cy="9.6" r="1.8" fill="#fff"/><path d="M4.6 17.6l4.3-4.7 3.3 3.5 2.6-2.4 4.9 5.4z" fill="#fff" opacity=".95"/>
+</svg>

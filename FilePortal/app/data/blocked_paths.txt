@@ -1,0 +1,2 @@
+# One path per line. Relative paths are resolved against projection_root.
+# Lines starting with # are comments.

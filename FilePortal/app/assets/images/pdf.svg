@@ -1,0 +1,6 @@
+<!-- pdf.svg : pdf 图标
+     想换图标就直接改这个文件（保持 24x24 的 viewBox），保存后刷新网页即可，不用重启。 -->
+<!-- 颜色 #cf3c33，想换颜色把下面的 fill 值改掉就行 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+<path d="M5 2h14a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#cf3c33"/><text x="12" y="15.4" text-anchor="middle" font-size="6.4" font-weight="700" font-family="Arial,Helvetica,sans-serif" fill="#fff">PDF</text>
+</svg>

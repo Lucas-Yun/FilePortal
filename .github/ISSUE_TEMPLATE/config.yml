@@ -1,0 +1,12 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: 安全漏洞私密报告
+    url: https://github.com/Lucas-Yun/FilePortal/security/advisories/new
+    about: 不要公开提交漏洞细节；请通过 GitHub Security Advisories 私下报告。
+  - name: 使用文档与常见问题
+    url: https://github.com/Lucas-Yun/FilePortal/blob/main/README.md
+    about: 安装、配置、HTTPS、角色、备份和常见问题先看 README。
+  - name: 参与贡献与测试要求
+    url: https://github.com/Lucas-Yun/FilePortal/blob/main/CONTRIBUTING.md
+    about: 提交代码或文档前，请阅读开发环境、测试和安全边界要求。

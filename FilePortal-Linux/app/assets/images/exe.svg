@@ -1,0 +1,6 @@
+<!-- exe.svg : exe 图标
+     想换图标就直接改这个文件（保持 24x24 的 viewBox），保存后刷新网页即可，不用重启。 -->
+<!-- 颜色 #5c6b7a，想换颜色把下面的 fill 值改掉就行 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+<rect x="3.6" y="3.6" width="7.4" height="7.4" rx="1.7" fill="#5c6b7a"/><rect x="13" y="3.6" width="7.4" height="7.4" rx="1.7" fill="#5c6b7a"/><rect x="3.6" y="13" width="7.4" height="7.4" rx="1.7" fill="#5c6b7a"/><rect x="13" y="13" width="7.4" height="7.4" rx="1.7" fill="#5c6b7a"/>
+</svg>

@@ -1,0 +1,31 @@
+# Normalize text files to LF in the repository.
+* text=auto eol=lf
+
+# Windows entry points keep CRLF so they run correctly from Explorer/cmd.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.psm1 text eol=crlf
+
+# Shell entry points must keep LF.
+*.sh text eol=lf
+
+# Binary assets.
+*.exe binary
+*.dll binary
+*.zip binary
+*.7z binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+
+# Documentation and templates are source material, not generated code.
+docs/* linguist-documentation
+.github/* linguist-documentation
+*.md linguist-documentation
