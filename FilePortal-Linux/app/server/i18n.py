@@ -42,6 +42,7 @@ _MAP = {
     "返回申请页": "Back to application",
     "云空间开通须知": "Workspace access notice",
     "取消并返回登录": "Cancel and return to sign in",
+    "取消并返回注册": "Cancel and return to registration",
     "同意并继续申请": "Agree and continue",
     "凭验证码设置密码": "Set password with verification code",
     "注册": "Register",

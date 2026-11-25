@@ -1997,7 +1997,7 @@ def build_notice(seconds=5, again=False):
 </script>
 """ % (contact_html, "disabled" if sec > 0 else "", btn_label,
        "/register/apply" if again else "/register",
-       "返回申请页" if again else "取消并返回登录", wait_js)
+       "返回申请页" if again else "取消并返回注册", wait_js)
     return _reg_page("云空间开通须知", body)
 
 
