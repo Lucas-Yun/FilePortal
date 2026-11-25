@@ -563,11 +563,15 @@ class Handler(BaseHTTPRequestHandler):
             target = None
             if root == base_root or root.startswith(base_root.rstrip("\\/") + os.sep):
                 target = resolve(rel, root)
-                if target is not None:
-                    target = os.path.realpath(target)
-                    if not target.startswith(base_root.rstrip("\\/") + os.sep):
-                        target = None
-            if target is None or not os.path.isfile(target):
+            if target is not None:
+                target = os.path.realpath(target)
+            if target is None:
+                self.send_body("文件不存在", 404, "text/plain; charset=utf-8")
+                return
+            if not target.startswith(base_root.rstrip("\\/") + os.sep):
+                self.send_body("文件不存在", 404, "text/plain; charset=utf-8")
+                return
+            if not os.path.isfile(target):
                 self.send_body("文件不存在", 404, "text/plain; charset=utf-8")
                 return
             hint = urllib.parse.unquote(path[3:].strip("/"))
