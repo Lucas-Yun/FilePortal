@@ -349,7 +349,6 @@ _CLASS_RE = re.compile(
     r'(<(?:p|span|div|a)[^>]*\bclass="[^"]*\b(?:%s)\b[^"]*"[^>]*>)(.*?)(</(?:p|span|div|a)>)'
     % "|".join(_TEXT_CLASSES), re.I | re.S)
 
-_ASIDE_RE = re.compile(r"(<aside(?=[\s>])[^>]*>)(.*?)(</aside>)", re.I | re.S)
 
 _JS_MAP = {
     "新建目录的名称：": "New folder name: ",
@@ -480,7 +479,6 @@ def _apply_fragment(fragment):
     for tag, rx in _TAG_RE.items():
         fragment = rx.sub(lambda m: m.group(1) + _tr(m.group(2)) + m.group(3), fragment)
     fragment = _CLASS_RE.sub(lambda m: m.group(1) + _tr(m.group(2)) + m.group(3), fragment)
-    fragment = _ASIDE_RE.sub(lambda m: m.group(1) + _tr(m.group(2)) + m.group(3), fragment)
     fragment = _ATTR_RE.sub(lambda m: m.group(1) + _tr(m.group(2)) + m.group(3), fragment)
     return fragment
 
@@ -511,13 +509,39 @@ def _lang_switch(lang):
     ) % (active_zh, active_en)
 
 
+_OPEN_TAG_RE = re.compile(r"<(script|style)\b[^>]*>", re.I)
+
+
+def _split_markup(body):
+    """Split script/style blocks without a backtracking regular expression."""
+    parts = []
+    pos = 0
+    lower = body.lower()
+    while True:
+        m = _OPEN_TAG_RE.search(body, pos)
+        if not m:
+            parts.append(body[pos:])
+            return parts
+        tag = m.group(1).lower()
+        close_start = lower.find("</" + tag, m.end())
+        if close_start < 0:
+            parts.append(body[pos:])
+            return parts
+        close_end = body.find(">", close_start)
+        if close_end < 0:
+            parts.append(body[pos:])
+            return parts
+        parts.append(body[pos:close_end + 1])
+        pos = close_end + 1
+
+
 def render(body, lang):
     """把 HTML 中的界面文字翻成目标语言，并在页面底部加入语言切换。"""
     if not isinstance(body, str):
         return body
     if lang == "en":
         # 保留 script/style 内部原样，避免改坏 JS/CSS
-        chunks = re.split(r"(<script[\s\S]*?</script\s*>|<style[\s\S]*?</style\s*>)", body, flags=re.I)
+        chunks = _split_markup(body)
         out = []
         for chunk in chunks:
             if chunk[:1] == "<" and re.match(r"<(?:script|style)[\s>]", chunk, re.I):

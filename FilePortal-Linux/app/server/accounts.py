@@ -94,7 +94,14 @@ def user_dir(name):
     """某个用户的云空间目录（绝对路径）；名字不合法返回 None"""
     if not valid_name(name):
         return None
-    path = os.path.join(cloud_root(), name.strip())
+    name = (name or "").strip()
+    safe_name = os.path.basename(name)
+    if safe_name != name or safe_name in ("", ".", ".."):
+        return None
+    root = os.path.realpath(cloud_root())
+    path = os.path.realpath(os.path.join(root, safe_name))
+    if not path.startswith(root.rstrip("\\/") + os.sep):
+        return None
     _ensure_cloud_root()
     try:
         os.makedirs(path, exist_ok=True)

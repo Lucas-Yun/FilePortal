@@ -388,7 +388,7 @@ class Handler(BaseHTTPRequestHandler):
                          "script-src 'self' 'unsafe-inline'; connect-src 'self'; "
                          "object-src 'none'; base-uri 'self'; frame-ancestors 'none'")
         for k, v in (extra or {}).items():
-            self.send_header(k, v)
+            self.send_header(k, str(v).replace("\r", "").replace("\n", ""))
         self.end_headers()
         self.close_connection = True
         if self.command != "HEAD":
@@ -396,11 +396,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def redirect(self, location, extra=None):
         self.send_response(303)
-        self.send_header("Location", location)
+        self.send_header("Location", str(location).replace("\r", "").replace("\n", ""))
         self.send_header("Content-Length", "0")
         self.send_header("Connection", "close")
         for k, v in (extra or {}).items():
-            self.send_header(k, v)
+            self.send_header(k, str(v).replace("\r", "").replace("\n", ""))
         self.end_headers()
         self.close_connection = True
 
@@ -558,14 +558,15 @@ class Handler(BaseHTTPRequestHandler):
             if "download" not in info.get("perms", set()):
                 self.send_body("当前身份不具备下载权限", 403, "text/plain; charset=utf-8")
                 return
-            root = info.get("root") or Config.root
-            target = resolve(rel, root)
-            if target is not None:
-                root_real = os.path.realpath(root)
-                target = os.path.realpath(target)
-                if target != root_real and not target.startswith(
-                        root_real.rstrip("\\/") + os.sep):
-                    target = None
+            root = os.path.realpath(info.get("root") or Config.root)
+            base_root = os.path.realpath(Config.root)
+            target = None
+            if root == base_root or root.startswith(base_root.rstrip("\\/") + os.sep):
+                target = resolve(rel, root)
+                if target is not None:
+                    target = os.path.realpath(target)
+                    if not target.startswith(base_root.rstrip("\\/") + os.sep):
+                        target = None
             if target is None or not os.path.isfile(target):
                 self.send_body("文件不存在", 404, "text/plain; charset=utf-8")
                 return
@@ -1307,9 +1308,13 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_body("目标目录路径不合法", 400, "text/plain; charset=utf-8")
                 return
             root_real = os.path.realpath(self.root())
+            base_root = os.path.realpath(Config.root)
+            if not (root_real == base_root or root_real.startswith(
+                    base_root.rstrip("\\/") + os.sep)):
+                self.send_body("目标目录路径不合法", 400, "text/plain; charset=utf-8")
+                return
             base_real = os.path.realpath(base)
-            if base_real != root_real and not base_real.startswith(
-                    root_real.rstrip("\\/") + os.sep):
+            if not (base_real == base_root or base_real.startswith(base_root.rstrip("\\/") + os.sep)):
                 self.send_body("目标目录路径不合法", 400, "text/plain; charset=utf-8")
                 return
             if not os.path.isdir(base_real):
@@ -1329,8 +1334,7 @@ class Handler(BaseHTTPRequestHandler):
                 if blocked.is_blocked(target_dir):
                     self.send_body("目标目录不可用", 400, "text/plain; charset=utf-8")
                     return
-                if target_dir != root_real and not target_dir.startswith(
-                        root_real.rstrip("\\/") + os.sep):
+                if not target_dir.startswith(base_root.rstrip("\\/") + os.sep):
                     self.send_body("路径不合法", 400, "text/plain; charset=utf-8")
                     return
                 os.makedirs(target_dir, exist_ok=True)
@@ -1354,10 +1358,8 @@ class Handler(BaseHTTPRequestHandler):
                                    "text/plain; charset=utf-8")
                     return
 
-            target_real = os.path.realpath(target_dir)
             final = os.path.realpath(os.path.join(target_dir, final_name))
-            if final != target_real and not final.startswith(
-                    target_real.rstrip("\\/") + os.sep):
+            if not final.startswith(base_root.rstrip("\\/") + os.sep):
                 self.send_body("文件名不合法", 400, "text/plain; charset=utf-8")
                 return
             if blocked.is_blocked(final):
@@ -1367,19 +1369,26 @@ class Handler(BaseHTTPRequestHandler):
                 base_name, ext = os.path.splitext(final_name)
                 i = 1
                 while True:
-                    cand = os.path.join(target_dir, "%s(%d)%s" % (base_name, i, ext))
+                    cand = os.path.realpath(os.path.join(
+                        target_dir, "%s(%d)%s" % (base_name, i, ext)))
+                    if not cand.startswith(base_root.rstrip("\\/") + os.sep):
+                        self.send_body("文件名不合法", 400, "text/plain; charset=utf-8")
+                        return
                     if not os.path.exists(cand):
                         final = cand
                         break
                     i += 1
 
             final = os.path.realpath(final)
-            if final != target_real and not final.startswith(
-                    target_real.rstrip("\\/") + os.sep):
+            if not final.startswith(base_root.rstrip("\\/") + os.sep):
                 self.send_body("文件名不合法", 400, "text/plain; charset=utf-8")
                 return
 
-            tmp = os.path.join(target_dir, ".upload-%s.tmp" % secrets.token_hex(6))
+            tmp = os.path.realpath(os.path.join(
+                target_dir, ".upload-%s.tmp" % secrets.token_hex(6)))
+            if not tmp.startswith(base_root.rstrip("\\/") + os.sep):
+                self.send_body("上传临时路径不合法", 400, "text/plain; charset=utf-8")
+                return
             remaining = length
             try:
                 with open(tmp, "wb") as fh:
@@ -1488,7 +1497,12 @@ class Handler(BaseHTTPRequestHandler):
             self.close_connection = True
             return
         try:
-            name = hint or os.path.basename(abspath)
+            name = str(hint or os.path.basename(abspath)).replace("\r", "").replace("\n", "")
+            base_root = os.path.realpath(Config.root)
+            abspath = os.path.realpath(abspath)
+            if not abspath.startswith(base_root.rstrip("\\/") + os.sep):
+                self.send_body("文件路径不合法", 403, "text/plain; charset=utf-8")
+                return
             try:
                 size = os.path.getsize(abspath)
                 mtime = os.path.getmtime(abspath)
