@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Runtime data
+FilePortal/app/runtime/
+FilePortal-Portable/app/runtime/
+FilePortal-Linux/app/runtime/
+FilePortal-Portable/FilePortalData/
+FilePortal/app/data/.session_secret
+FilePortal-Portable/app/data/.session_secret
+FilePortal-Linux/app/data/.session_secret
+app/data/.session_secret
+**/data/sessions.json
+**/runtime/cache/
+**/runtime/logs/
+*.log
+
+# Certificates and local secrets
+**/certs/*
+*.pem
+*.key
+*.crt
+*.pfx
+
+# Local configuration produced by launchers
+FilePortal-Portable/FilePortalData/config.ini
+
+# Build output
+build/
+dist/
+*.spec
+*.exe
+*.zip
+*.msi
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp

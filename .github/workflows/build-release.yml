@@ -1,0 +1,135 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  windows:
+    name: Windows x64 portable EXE
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Install PyInstaller
+        run: python -m pip install --upgrade pip pyinstaller
+      - name: Build one-file EXE
+        shell: pwsh
+        run: |
+          Set-Location FilePortal-Portable
+          python -m PyInstaller --noconfirm --clean --onefile --noconsole `
+            --name FilePortal `
+            --paths app `
+            --hidden-import app --hidden-import tray --hidden-import console `
+            --collect-submodules server `
+            --add-data "app/config.ini;." `
+            --add-data "app/assets;assets" `
+            --add-data "app/data;seed_data" `
+            --add-data "app/docs;docs" `
+            app/portable.py
+          if (!(Test-Path "dist/FilePortal.exe")) { throw "FilePortal.exe was not produced" }
+          New-Item -ItemType Directory -Force -Path ../release | Out-Null
+          Copy-Item "dist/FilePortal.exe" "../release/FilePortal-Windows-x64.exe"
+          $hash = (Get-FileHash "../release/FilePortal-Windows-x64.exe" -Algorithm SHA256).Hash.ToLower()
+          $out = Join-Path (Resolve-Path "../release").Path "FilePortal-Windows-x64.exe.sha256"
+          [System.IO.File]::WriteAllText($out, "$hash  FilePortal-Windows-x64.exe`n", [System.Text.Encoding]::ASCII)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: release/*
+          if-no-files-found: error
+
+  linux:
+    name: Linux x86_64 package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Sanity check
+        run: python -m compileall -q FilePortal/app FilePortal-Portable/app FilePortal-Linux/app
+      - name: Package Linux edition
+        run: |
+          mkdir -p release
+          cd FilePortal-Linux
+          chmod +x launcher.sh
+          find . -type d -name __pycache__ -prune -exec rm -rf {} +
+          find . -type f -name '*.pyc' -delete
+          zip -r ../release/FilePortal-Linux.zip . -x 'app/runtime/*' 'app/data/.session_secret' '__pycache__/*' '*.pyc'
+          cd ..
+          (cd release && sha256sum FilePortal-Linux.zip > FilePortal-Linux.zip.sha256)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-zip
+          path: release/*
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - name: Show release assets
+        run: ls -lh release
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          target_commitish: main
+          name: FilePortal v1.0.0
+          body_path: .github/release-body.md
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          overwrite_files: true
+          files: release/*
+
+  normalize:
+    name: Normalize repository metadata
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Collapse history with clean author
+        run: |
+          git config user.name "Lucas-Yun"
+          git config user.email "200024866+Lucas-Yun@users.noreply.github.com"
+          touch .github/.history-normalized
+          git checkout --orphan clean-release
+          git add -A
+          git commit -m "FilePortal v1.0.0"
+          git push --force origin clean-release:main
+          git tag -f v1.0.0 HEAD
+          git push --force origin v1.0.0
+      - name: Remove old workflow runs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          { gh api --paginate "repos/${{ github.repository }}/actions/runs?per_page=100" \
+              --jq ".workflow_runs[] | select(.id != ${GITHUB_RUN_ID}) | .id" || true; } |
+          while read -r run_id; do
+            gh api -X DELETE "repos/${{ github.repository }}/actions/runs/${run_id}" >/dev/null 2>&1 || true
+          done
+
+
+

@@ -1,0 +1,108 @@
+name: Bug 报告
+description: 报告可复现的功能异常、界面问题或兼容性问题
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请先删除密码、token、Cookie、真实文件名、个人路径、手机号、邮箱和用户数据。
+        安全漏洞请不要用这个表单，请使用仓库 Security 页的私密报告入口。
+
+  - type: dropdown
+    id: edition
+    attributes:
+      label: 版本类型
+      options:
+        - Windows 源码版
+        - Windows 单文件便携版
+        - Linux 源码版
+        - 其他（请在描述中说明）
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: 版本号或提交
+      placeholder: 例如 v1.0.0、main@20865a1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: 操作系统
+      options:
+        - Windows 10
+        - Windows 11
+        - Windows Server
+        - Ubuntu
+        - Debian
+        - 其他 Linux
+        - macOS
+        - 其他
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python 版本（源码版填写）
+      placeholder: 例如 3.10.12、3.14.0
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 问题描述
+      description: 说明发生了什么，以及它影响了哪个功能。
+      placeholder: 例如：手机 360×640 下打开登录页，用户须知顶部被裁切。
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 尽量给出最小、稳定的复现路径。
+      placeholder: |
+        1. 启动服务
+        2. 使用浏览器视口 360×640 打开 /login
+        3. 向下滚动
+        4. 观察到……
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期结果
+      placeholder: 页面应从顶部开始，可完整滚动到用户须知末尾。
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+      placeholder: 顶部出现白边，开头的标题不可见。
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 已脱敏的日志或截图
+      description: 请删除密钥、Cookie、真实路径和个人信息后再粘贴。
+      render: text
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已经搜索过现有 Issue，确认不是重复问题。
+          required: true
+        - label: 我已删除所有密码、token、Cookie、真实文件名、个人路径和联系方式。
+          required: true
+        - label: 这不是安全漏洞；安全漏洞会走私密报告流程。
+          required: true

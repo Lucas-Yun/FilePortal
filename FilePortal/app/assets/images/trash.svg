@@ -1,0 +1,6 @@
+<!-- trash.svg : trash 图标
+     想换图标就直接改这个文件（保持 24x24 的 viewBox），保存后刷新网页即可，不用重启。 -->
+<!-- 界面图标：颜色跟随按钮文字（currentColor） -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+<path d="M6 7h12l-1 14H7z" fill="currentColor"/><path d="M4 5h16M9.5 3h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+</svg>
