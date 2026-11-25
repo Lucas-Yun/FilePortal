@@ -15,7 +15,8 @@ _TEXT_TAGS = ("title", "h1", "h2", "h3", "label", "button", "th", "option")
 _TEXT_CLASSES = ("sub", "hint", "tip", "empty", "cTitle", "reghint", "foot",
                  "notice", "msg", "err", "okmsg", "stat", "cardtitle", "muted",
                  "advhint", "advfoot", "favempty",
-                 "pgbtn", "backbtn", "regbtn", "ghostbtn", "back", "crumb")
+                 "pgbtn", "backbtn", "regbtn", "ghostbtn", "back", "crumb",
+                 "regbadge", "regaskt", "regasks", "applylink", "noticepill")
 
 _MAP = {
     # 登录 / 注册 / 须知
@@ -43,6 +44,32 @@ _MAP = {
     "取消并返回登录": "Cancel and return to sign in",
     "同意并继续申请": "Agree and continue",
     "凭验证码设置密码": "Set password with verification code",
+    "注册": "Register",
+    "还没有云空间账号？": "No workspace account yet?",
+    "注册云空间账号": "Create workspace account",
+    "已通过管理员审批": "Approved by administrator",
+    "请填写申请时的姓名、管理员发放的 4 位验证码，并设置本人密码。三项校验一致后，云空间账号才会创建。":
+        "Enter the name used in your request, the 4-digit code from the administrator, and choose a password. The account is created only when all three match.",
+    "4 位验证码": "4-digit verification code",
+    "设置密码（至少 8 位）": "Password (at least 8 characters)",
+    "至少 8 位，建议字母和数字组合": "At least 8 characters; letters and numbers recommended",
+    "再次输入密码": "Enter password again",
+    "完成注册": "Create account",
+    "还没有提交过云空间申请？": "Haven't submitted a workspace request?",
+    "只有管理员审批通过并发放验证码后，才能在这一页直接设置密码。":
+        "You can set a password here only after an administrator approves your request and issues a verification code.",
+    "未获得管理员审批？点击这里申请 →": "Not approved by the administrator? Apply here →",
+    "返回登录": "Back to sign in",
+    "开通须知": "Access notice",
+    "第 1 步 · 提交申请": "Step 1 · Submit request",
+    "填写申请人姓名和备注。提交后管理员会在管理控制台收到申请；审批通过后会生成 4 位验证码。":
+        "Enter the applicant name and an optional note. The administrator receives the request in the console; approval generates a 4-digit code.",
+    "已有审批？返回注册 · 凭验证码设密":
+        "Already approved? Return to registration · Set password with code",
+    "重新阅读开通须知": "Read the access notice again",
+    "确认提交": "Submit",
+    "请先完整阅读以下 5 项说明。停留 5 秒后可点击「同意」，再进入申请页。":
+        "Read all five notes below. After 5 seconds you can click Agree to continue to the request form.",
     "提交云空间开通申请": "Submit workspace request",
     "第一步：阅读须知并点击同意": "Step 1: Read the notice and agree",
     "第二步：填写申请人姓名（必填）与备注（选填）并提交申请":

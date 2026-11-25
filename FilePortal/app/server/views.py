@@ -329,6 +329,22 @@ button[disabled]{background:#c9d6e1;cursor:not-allowed;filter:none}
 .ghostbtn:hover{background:#eef7fd}
 .back{display:block;text-align:center;margin-top:16px;font-size:13px;color:#0f6fbd;text-decoration:none}
 .back:hover{text-decoration:underline}
+.reghero{text-align:left;margin:0 0 18px}
+.regbadge{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;
+  background:#eaf6ff;color:#0f6fbd;border:1px solid #cfe6f7;font-size:12px;font-weight:600}
+.reghero .sub{margin:10px 0 0;font-size:13px;line-height:1.7}
+.regask{margin-top:20px;padding:15px 15px 13px;border:1px dashed #cfe0ef;border-radius:13px;
+  background:#f8fbfe;text-align:left}
+.regask .regaskt{font-size:13.5px;font-weight:600;color:#12293f;margin-bottom:5px}
+.regask .regasks{font-size:12.5px;color:#7b8a99;line-height:1.65;margin-bottom:12px}
+.applylink{display:block;padding:12px 13px;border-radius:10px;background:#fff;border:1px solid #cfe0ef;
+  color:#0f6fbd;font-size:13.5px;font-weight:600;text-decoration:none;text-align:center}
+.applylink:hover{background:#eef7fd;border-color:#8fc0e0}
+.noticepill{position:fixed;right:18px;top:18px;z-index:9;display:inline-flex;align-items:center;
+  gap:5px;padding:8px 11px;border-radius:999px;background:#eef6fc;color:#0f6fbd;border:1px solid #cfe4f5;
+  font-size:12.5px;font-weight:600;text-decoration:none;box-shadow:0 2px 8px rgba(15,111,189,.12)}
+.noticepill:hover{background:#e2f2fd;border-color:#8fc0e0}
+@media (max-width:560px){.noticepill{right:12px;top:12px;padding:7px 9px}.reghero{margin-bottom:14px}.regask{padding:13px 13px 11px}}
 @media (max-width:560px){
   body{padding:14px 12px}
   .card{padding:22px 18px 20px;border-radius:14px}
@@ -1911,8 +1927,8 @@ def build_login(error="", who="", note=""):
                  '<path d="M12 7v6"/><circle cx="12" cy="16.8" r=".9" fill="currentColor"/></svg>'
                  '%s</div>') % html.escape(error)
     okblock = ('<div class="okmsg">%s</div>' % html.escape(note)) if note else ""
-    reg = ('<p class="reghint">如需独立存储空间，可提交开通申请</p>'
-           '<a class="regbtn" href="/register">开通申请</a>') if settings.flag("register_enabled") else ""
+    reg = ('<p class="reghint">还没有云空间账号？</p>'
+           '<a class="regbtn" href="/register">注册</a>') if settings.flag("register_enabled") else ""
     return (LOGIN_PAGE.replace("@ERROR@", block)
             .replace("@OKMSG@", okblock)
             .replace("@WHO@", html.escape(who or "", quote=True))
@@ -1952,7 +1968,8 @@ def build_notice(seconds=5, again=False):
                                   % (html.escape(label), html.escape(val))
                                   for label, val in contact))
     body = """
-<p class="sub">提交申请前，请完整阅读以下 5 项说明。阅读完毕并确认同意后，方可进入申请流程。</p>
+<div class="reghero"><span class="regbadge">开通须知</span></div>
+<p class="sub">请先完整阅读以下 5 项说明。停留 5 秒后可点击「同意」，再进入申请页。</p>
 <div class="notice">
  <p><b>一、主存储空间为主要资料区。</b>绝大部分资料与文件位于主存储空间（即日常登录的文件服务平台），日常查阅与下载均通过主存储空间完成，无需另行开通。</p>
  <p><b>二、本云空间适用于独立存储需求。</b>仅当确需一份仅本人可见的独立存储区域（其他访问者无法查看您的文件，您亦无法查看他人文件）时，方需在此申请开通。</p>
@@ -1961,7 +1978,7 @@ def build_notice(seconds=5, again=False):
  <p><b>五、每自然日仅可提交一次申请。</b>重复提交将被拒绝；姓名一经注册即固定，不予变更。</p>
 %s
 </div>
-<form method="post" action="/register" id="agreeForm" autocomplete="off">
+<form method="post" action="/register/notice" id="agreeForm" autocomplete="off">
  <input type="hidden" name="agree" value="1">
  <button type="submit" id="okBtn" %s>%s</button>
 </form>
@@ -1979,20 +1996,19 @@ def build_notice(seconds=5, again=False):
 })();
 </script>
 """ % (contact_html, "disabled" if sec > 0 else "", btn_label,
-       "/register/apply" if again else "/login",
+       "/register/apply" if again else "/register",
        "返回申请页" if again else "取消并返回登录", wait_js)
     return _reg_page("云空间开通须知", body)
 
 
 def build_apply(message="", ok=False, who="", remark=""):
-    """第二步：填写申请人姓名（必填）与备注（选填）并提交申请"""
+    """提交云空间开通申请：只填姓名与备注，提交后等待管理员审批。"""
     body = """
-<a href="/register?again=1" title="重新阅读开通须知" aria-label="重新阅读开通须知"
-   style="position:fixed;right:18px;top:18px;z-index:9;width:36px;height:36px;border-radius:50%%;
-   background:#eef6fc;color:#0f6fbd;border:1px solid #cfe4f5;display:flex;align-items:center;
-   justify-content:center;font-weight:700;text-decoration:none;font-size:16px;
-   box-shadow:0 2px 8px rgba(15,111,189,.12)">?</a>
-<p class="sub">本步骤需填写申请人姓名，备注为选填项。提交后管理员将在管理控制台收到该申请；审批通过后系统生成 4 位验证码。</p>
+<a class="noticepill" href="/register/notice?again=1" title="重新阅读开通须知">开通须知</a>
+<div class="reghero">
+ <span class="regbadge">第 1 步 · 提交申请</span>
+ <p class="sub">填写申请人姓名和备注。提交后管理员会在管理控制台收到申请；审批通过后会生成 4 位验证码。</p>
+</div>
 %s
 <form method="post" action="/register/apply" autocomplete="off">
  <label for="who">申请人姓名</label>
@@ -2004,32 +2020,41 @@ def build_apply(message="", ok=False, who="", remark=""):
    outline:none;resize:vertical;font-family:inherit">%s</textarea>
  <button type="submit">确认提交</button>
 </form>
-<a class="ghostbtn" href="/register/set">已通过审批？凭验证码设置密码</a>
-<a class="back" href="/login">返回登录</a>
+<a class="ghostbtn" href="/register">已有审批？返回注册 · 凭验证码设密</a>
+<a class="back" href="/register/notice">重新阅读开通须知</a>
 """ % (_reg_msg(message, ok), html.escape(who or "", quote=True),
        html.escape(remark or ""))
     return _reg_page("提交云空间开通申请", body)
 
 
 def build_setpw(message="", ok=False, who="", code=""):
-    """第三步：凭 4 位验证码设置密码并完成注册"""
+    """默认注册页：已通过审批的用户，凭验证码设置密码。"""
     body = """
-<p class="sub">请填写申请时使用的姓名、管理员发放的 4 位验证码，以及本人拟使用的密码。三项信息校验一致后，账号方可创建。</p>
+<div class="reghero">
+ <span class="regbadge">已通过管理员审批</span>
+ <p class="sub">请填写申请时的姓名、管理员发放的 4 位验证码，并设置本人密码。三项校验一致后，云空间账号才会创建。</p>
+</div>
 %s
 <form method="post" action="/register/set" autocomplete="off">
- <label for="who">已通过审批的申请人姓名</label>
+ <label for="who">申请人姓名</label>
  <input id="who" name="who" type="text" maxlength="24" required value="%s" placeholder="申请时填写的姓名">
  <label for="code">4 位验证码</label>
  <input id="code" name="code" type="text" inputmode="numeric" pattern="\\d{4}" maxlength="4" required value="%s" placeholder="管理员提供的 4 位数字">
  <label for="pw">设置密码（至少 8 位）</label>
- <input id="pw" name="pw" type="password" required minlength="4" maxlength="64">
+ <input id="pw" name="pw" type="password" required minlength="8" maxlength="128" placeholder="至少 8 位，建议字母和数字组合">
  <label for="pw2">再次输入密码</label>
- <input id="pw2" name="pw2" type="password" required minlength="4" maxlength="64">
+ <input id="pw2" name="pw2" type="password" required minlength="8" maxlength="128" placeholder="再输入一次">
  <button type="submit">完成注册</button>
 </form>
+<div class="regask">
+ <div class="regaskt">还没有提交过云空间申请？</div>
+ <div class="regasks">只有管理员审批通过并发放验证码后，才能在这一页直接设置密码。</div>
+ <a class="applylink" href="/register/notice">未获得管理员审批？点击这里申请 →</a>
+</div>
 <a class="back" href="/login">返回登录</a>
-""" % (_reg_msg(message, ok), html.escape(who or "", quote=True), html.escape(code or "", quote=True))
-    return _reg_page("凭验证码设置密码", body)
+""" % (_reg_msg(message, ok), html.escape(who or "", quote=True),
+       html.escape(code or "", quote=True))
+    return _reg_page("注册云空间账号", body)
 
 
 def build_crumb(rel):

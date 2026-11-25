@@ -474,8 +474,19 @@ class Handler(BaseHTTPRequestHandler):
                 sessions.release(me["name"], me["sid"])
             self.redirect("/login", {"Set-Cookie": "fs_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"})
             return
-        # 注册三步：① 须知（必须读几秒）→ ② 只填姓名提交申请 → ③ 凭管理员验证码设密码
+        # 注册：默认凭验证码设密；未审批者先读须知（5 秒）再提交申请，审批后回默认页设密
         if path == "/register":
+            # 默认注册页：已通过审批的用户先凭验证码设置密码；开通须知不在这里强制阅读。
+            if not settings.flag("register_enabled"):
+                self.send_body(build_login("注册功能当前未开放"), 404)
+                return
+            if self.is_authed():
+                self.redirect("/browse")
+                return
+            self.send_body(build_setpw())
+            return
+        if path == "/register/notice":
+            # 只有从「未获得管理员审批？点击这里申请」进入时才读须知，首次停留 5 秒。
             if not settings.flag("register_enabled"):
                 self.send_body(build_login("注册功能当前未开放"), 404)
                 return
@@ -498,7 +509,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             # 必须先在须知页点过「同意」（服务端发过 fsnotice Cookie），避免直接跳到这一步
             if not self._cookies().get("fsnotice"):
-                self.redirect("/register")
+                self.redirect("/register/notice")
                 return
             self.send_body(build_apply((qs.get("msg") or [""])[0],
                                        (qs.get("ok") or ["0"])[0] == "1",
@@ -920,14 +931,14 @@ class Handler(BaseHTTPRequestHandler):
                 self.redirect("/admin?saved=%d&warn=%s" % (changed, urllib.parse.quote(warn)), headers)
                 return
 
-            if path == "/register":
-                # 第①步：须知页点「同意」——记一个 30 分钟有效的记号，之后才能进申请页
+            if path in ("/register", "/register/notice"):
+                # 须知页点「同意」——记一个 30 分钟有效的记号，之后才能进申请页
                 if not settings.flag("register_enabled"):
                     self.send_body("注册功能当前未开放", 404, "text/plain; charset=utf-8")
                     return
                 form = self.read_form()
                 if (form.get("agree") or "") not in ("1", "on"):
-                    self.redirect("/register")
+                    self.redirect("/register/notice" if path == "/register/notice" else "/register")
                     return
                 self.redirect("/register/apply",
                               {"Set-Cookie":
@@ -940,7 +951,7 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_body("注册功能当前未开放", 404, "text/plain; charset=utf-8")
                     return
                 if not self._cookies().get("fsnotice"):
-                    self.redirect("/register")
+                    self.redirect("/register/notice")
                     return
                 form = self.read_form()
                 who = sanitize_who(form.get("who") or "")
