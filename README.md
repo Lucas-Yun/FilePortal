@@ -1,7 +1,7 @@
 # FilePortal
 
-**一个可自托管的轻量文件映射与共享服务。**  
-把本机或服务器上的一个目录映射成网页文件库，支持多角色访问、上传下载、在线预览、批量打包、回收站、云空间账号和后台管理。
+**把电脑上的一个文件夹，变成一个可以分享的网页文件库。**
+纯 Python 标准库 · 单文件启动 · 免数据库 / 免 Docker / 免 Node.js
 
 [![Release](https://img.shields.io/github/v/release/Lucas-Yun/FilePortal?display_name=tag)](https://github.com/Lucas-Yun/FilePortal/releases/latest)
 [![Build](https://github.com/Lucas-Yun/FilePortal/actions/workflows/build-release.yml/badge.svg)](https://github.com/Lucas-Yun/FilePortal/actions/workflows/build-release.yml)
@@ -11,22 +11,23 @@
 [![Security Policy](https://img.shields.io/badge/security-policy-0f6fbd.svg)](SECURITY.md)
 [![Contributions](https://img.shields.io/badge/contributions-welcome-2ea44f.svg)](CONTRIBUTING.md)
 
-> **下载成品**
+> **下载即用**
 > - Windows 10 / 11（x64）单文件版：[FilePortal-Windows-x64.exe](https://github.com/Lucas-Yun/FilePortal/releases/latest/download/FilePortal-Windows-x64.exe)
 > - Linux（x86_64）源码启动包：[FilePortal-Linux.zip](https://github.com/Lucas-Yun/FilePortal/releases/latest/download/FilePortal-Linux.zip)
-> - 全部版本与校验值：[Releases](https://github.com/Lucas-Yun/FilePortal/releases/latest)
+> - 全部版本与 SHA256 校验值：[Releases](https://github.com/Lucas-Yun/FilePortal/releases/latest)
+>
+> 默认登录：`Admin` / `ChangeMe_Admin` —— **首次登录请立刻修改密码**。
 
 ---
 
 ## 目录
 
-- [项目简介](#项目简介)
+- [这是什么](#这是什么)
+- [30 秒上手](#30-秒上手)
+- [为什么选它](#为什么选它)
+- [和常见做法的区别](#和常见做法的区别)
 - [三种版本](#三种版本)
 - [功能一览](#功能一览)
-- [快速开始](#快速开始)
-  - [Windows 单文件版](#windows-单文件版)
-  - [Linux 版](#linux-版)
-  - [源码版](#源码版)
 - [初始设置](#初始设置)
 - [中英文切换](#中英文切换)
 - [后台管理](#后台管理)
@@ -44,18 +45,63 @@
 
 ---
 
-## 项目简介
+## 这是什么
 
-FilePortal 是一个基于 Python 标准库实现的单进程文件服务，不需要数据库，也不需要 Node.js、Nginx 或 Docker。启动后通过浏览器访问，即可：
+FilePortal 把本机或服务器上的**一个目录**映射成网页文件库。别人用浏览器打开你给的地址，用「姓名 + 密码」登录，就能按你分配的权限浏览、上传、下载、预览和打包——不需要装客户端，也不需要你搭一套网盘。
 
-- 浏览指定目录中的文件和文件夹；
-- 按姓名和密码区分访问权限；
-- 上传、下载、重命名、移动、删除和打包下载；
-- 在线预览图片、视频、音频、PDF 和文本；
-- 通过后台页面管理规则、名单、账号和运行状态；
-- 在中文和英文之间切换界面。
+**它适合：**
 
-它适合个人文件共享、家庭资料库、实验室/教室资料分发、内网轻量网盘等场景。它不是企业级对象存储，也不替代专业 NAS、备份系统或公网文件托管服务。
+| 场景 | 用法 |
+| --- | --- |
+| 教室 / 实验室资料分发 | 老师上传，学生按规则只读或只下载指定子目录 |
+| 家庭资料库 | 老电脑、老设备、安卓 WebView 也能顺利下载，中文文件名不乱码 |
+| 内网轻量网盘 | 不装 Docker、不建数据库，一个 EXE 或一条命令跑起来 |
+| 临时对外分享 | 配合 HTTPS 或内网穿透，按人发权限，用完直接关掉 |
+
+**它不适合：** 企业级对象存储、多租户大规模云盘、NAS / 备份系统的替代品。需要集群、S3 兼容接口、高并发时请选专业方案。
+
+## 30 秒上手
+
+### Windows（推荐给普通用户）
+
+1. 下载 [FilePortal-Windows-x64.exe](https://github.com/Lucas-Yun/FilePortal/releases/latest/download/FilePortal-Windows-x64.exe)；
+2. 放到一个有写入权限的文件夹（不要放只读光盘或受控目录），双击运行；
+3. 浏览器会自动打开 `http://127.0.0.1:8000`；
+4. 用 `Admin` / `ChangeMe_Admin` 登录；
+5. 进 **后台 → 配置**，立刻做两件事：改 `admin_password`，把 `projection_root` 指向你要分享的目录。
+
+首次启动会在 EXE 同目录创建 `FilePortalData/`，所有数据（配置、账号、回收站、日志）都在里面，删掉这个文件夹即等于彻底卸载。
+
+### Linux
+
+```bash
+unzip FilePortal-Linux.zip && cd FilePortal-Linux
+chmod +x launcher.sh
+./launcher.sh
+```
+
+要求 Python 3.10+，无需 `pip install` 任何运行时依赖。详细步骤见 [Linux 版](#linux-版)。
+
+## 为什么选它
+
+| 你关心的 | FilePortal 的做法 |
+| --- | --- |
+| **部署成本** | 纯 Python 标准库，零第三方运行时依赖；Windows 是单个 EXE，Linux 是一个启动脚本；不需要数据库、Nginx、Docker |
+| **按人分权限** | 姓名 + 密码登录；每条规则可单独指定权限（`download,preview,zip,upload,mkdir,rename,delete`）和可见子目录；支持通配姓名 `*` 与排除写法 `!姓名` |
+| **老设备兼容** | 下载模式可切「标准 / 兼容」，文件名可选仅 ASCII，专门解决安卓 WebView 与老系统上的中文乱码 |
+| **安全边界** | `realpath` 校验阻止目录穿越与符号链接逃逸；响应头带 CSP、X-Frame-Options、X-Content-Type-Options 等；下载直链含签名 + 有效期 + 规则指纹，规则一变旧链立即失效；后台写操作走同源校验 |
+| **数据在你手里** | 配置、账号、回收站、日志全在本地 `data/` 与 `runtime/`；仓库不打包任何个人名单、账号、证书或日志 |
+| **中文友好** | 内置中 / 英界面切换，中文文档完整，不需要自己汉化 |
+| **可运维** | 托盘图标、运维控制台、`launcher.sh status/stop`；`zip_slots`、`upload_slots`、`max_upload_mb`、`user_quota_mb` 可限流限容 |
+| **可交付** | GitHub Actions 自动构建 Windows EXE 与 Linux 包，附 SHA256 校验；CodeQL 静态扫描；MIT 许可，可自由改造 |
+
+## 和常见做法的区别
+
+- **公共网盘（百度网盘 / OneDrive）**：数据和访问规则都不在你手里，老设备装不了客户端，权限最细只能到「链接 + 提取码」。
+- **`nginx autoindex` / `python -m http.server`**：几行就能列目录，但没有账号体系、没有上传、没有回收站、只有英文目录页。
+- **AList / Cloudreve**：能力更重、依赖更多（Go / Node + 数据库），适合做存储聚合或多用户云盘；FilePortal 的目标是「单文件、单目录、按人给权限、开箱是中文」。
+
+一句话：**要的是「把这台机器上的这个文件夹分享出去」，不是「再运营一个网盘平台」。**
 
 ## 三种版本
 
@@ -131,7 +177,7 @@ FilePortal 是一个基于 Python 标准库实现的单进程文件服务，不�
 - 管理后台写操作启用同源请求校验；
 - 上传文件名过滤 Windows 非法字符、保留设备名和路径分隔符。
 
-## 快速开始
+## 快速开始（分版本详解）
 
 ### Windows 单文件版
 
@@ -220,7 +266,7 @@ pw_full = 你的全权限密码
 admin_password = 你的后台密码
 ```
 
-后台地址：`http://127.0.0.1:8000/admin`  
+后台地址：`http://127.0.0.1:8000/admin`
 后台登录：姓名 `Admin` + `admin_password`。
 
 修改后重启服务生效。也可以在后台“配置”页面修改部分配置，页面会提示是否需要重启。
@@ -509,10 +555,14 @@ Three editions are provided: Windows source, Windows portable single-file EXE, a
 
 版本变更、修复和安全相关调整记录在 [CHANGELOG.md](CHANGELOG.md)。
 
+## 如果它对你有用
+
+- 点一个 **Star**，是最便宜的鼓励，也能让更多人搜到这个项目；
+- 有功能想法或踩到坑，欢迎开 [Issue](../../issues) —— 说得越具体，改得越快；
+- 想让更多人知道自己用得上它，转发到班级群、实验室群、自建服务社区比任何推荐算法都管用。
+
 ## License
 
 [MIT](LICENSE)
-
 Copyright (c) 2026 Lucas-Yun and FilePortal contributors.
-
 FilePortal is provided “as is”, without warranty of any kind. You are responsible for the data you expose, the network you bind to, and the permissions you grant.
