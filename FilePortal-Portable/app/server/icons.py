@@ -196,25 +196,37 @@ def get_sprite():
 
 def icon_file_text(name):
     """返回 images/<name>.svg 的原文（给 /img/xxx.svg 用），不存在返回 None"""
-    if not name or "/" in name or "\\" in name or name.startswith("."):
+    if not name:
         return None
-    path = os.path.join(IMG_DIR, name + ".svg")
-    if not os.path.isfile(path):
-        return None
-    try:
-        with open(path, encoding="utf-8", errors="replace") as fh:
-            return fh.read()
-    except OSError:
-        return None
+    target = name + ".svg"
+    for fn in list_icon_files():
+        if fn != target:
+            continue
+        path = os.path.join(IMG_DIR, fn)
+        if not os.path.isfile(path):
+            return None
+        try:
+            with open(path, encoding="utf-8", errors="replace") as fh:
+                return fh.read()
+        except OSError:
+            return None
+    return None
 
 
 def icon_image_path(name):
     """images 里的一张图片（png / jpg / gif / webp / svg），给 /img/xxx.png 用。
-    只认 images 目录下的单层文件名，防止有人用 ../../ 往外读。"""
-    if not name or "/" in name or "\\" in name or name.startswith("."):
+    只从 images 目录的实际文件列表里取，防止有人用 ../../ 往外读。"""
+    if not name:
         return None
-    path = os.path.join(IMG_DIR, name)
-    if not os.path.isfile(path):
+    try:
+        entries = os.listdir(IMG_DIR)
+    except OSError:
         return None
-    return path
+    for fn in entries:
+        if fn != name:
+            continue
+        path = os.path.join(IMG_DIR, fn)
+        if os.path.isfile(path):
+            return path
+    return None
 

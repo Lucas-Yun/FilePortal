@@ -350,7 +350,6 @@ _CLASS_RE = re.compile(
     % "|".join(_TEXT_CLASSES), re.I | re.S)
 
 _ASIDE_RE = re.compile(r"(<aside(?=[\s>])[^>]*>)(.*?)(</aside>)", re.I | re.S)
-_SCRIPT_RE = re.compile(r"(<script(?=[\s>])[^>]*>)(.*?)(</script>)", re.I | re.S)
 
 _JS_MAP = {
     "新建目录的名称：": "New folder name: ",
@@ -518,7 +517,7 @@ def render(body, lang):
         return body
     if lang == "en":
         # 保留 script/style 内部原样，避免改坏 JS/CSS
-        chunks = re.split(r"(<script[\s\S]*?</script>|<style[\s\S]*?</style>)", body, flags=re.I)
+        chunks = re.split(r"(<script[\s\S]*?</script\s*>|<style[\s\S]*?</style\s*>)", body, flags=re.I)
         out = []
         for chunk in chunks:
             if chunk[:1] == "<" and re.match(r"<(?:script|style)[\s>]", chunk, re.I):

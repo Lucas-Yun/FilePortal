@@ -558,7 +558,14 @@ class Handler(BaseHTTPRequestHandler):
             if "download" not in info.get("perms", set()):
                 self.send_body("当前身份不具备下载权限", 403, "text/plain; charset=utf-8")
                 return
-            target = resolve(rel, info.get("root") or Config.root)
+            root = info.get("root") or Config.root
+            target = resolve(rel, root)
+            if target is not None:
+                root_real = os.path.realpath(root)
+                target = os.path.realpath(target)
+                if target != root_real and not target.startswith(
+                        root_real.rstrip("\\/") + os.sep):
+                    target = None
             if target is None or not os.path.isfile(target):
                 self.send_body("文件不存在", 404, "text/plain; charset=utf-8")
                 return
@@ -1296,7 +1303,16 @@ class Handler(BaseHTTPRequestHandler):
             rel_dir = (qs.get("p") or [""])[0]
             raw_name = (qs.get("name") or [""])[0]
             base = resolve(rel_dir, self.root())
-            if base is None or not os.path.isdir(base):
+            if base is None:
+                self.send_body("目标目录路径不合法", 400, "text/plain; charset=utf-8")
+                return
+            root_real = os.path.realpath(self.root())
+            base_real = os.path.realpath(base)
+            if base_real != root_real and not base_real.startswith(
+                    root_real.rstrip("\\/") + os.sep):
+                self.send_body("目标目录路径不合法", 400, "text/plain; charset=utf-8")
+                return
+            if not os.path.isdir(base_real):
                 self.send_body("目标目录路径不合法", 400, "text/plain; charset=utf-8")
                 return
             # 支持 "子目录/文件" 形式（整文件夹上传）
@@ -1307,14 +1323,14 @@ class Handler(BaseHTTPRequestHandler):
                 return
             dirs = segs[:-1]
             final_name = segs[-1]
-            target_dir = base
+            target_dir = base_real
             for d in dirs:
-                target_dir = os.path.join(target_dir, d)
+                target_dir = os.path.realpath(os.path.join(target_dir, d))
                 if blocked.is_blocked(target_dir):
                     self.send_body("目标目录不可用", 400, "text/plain; charset=utf-8")
                     return
-                if os.path.commonpath([os.path.realpath(target_dir),
-                                       os.path.realpath(self.root())]) != os.path.realpath(self.root()):
+                if target_dir != root_real and not target_dir.startswith(
+                        root_real.rstrip("\\/") + os.sep):
                     self.send_body("路径不合法", 400, "text/plain; charset=utf-8")
                     return
                 os.makedirs(target_dir, exist_ok=True)
@@ -1338,7 +1354,12 @@ class Handler(BaseHTTPRequestHandler):
                                    "text/plain; charset=utf-8")
                     return
 
-            final = os.path.join(target_dir, final_name)
+            target_real = os.path.realpath(target_dir)
+            final = os.path.realpath(os.path.join(target_dir, final_name))
+            if final != target_real and not final.startswith(
+                    target_real.rstrip("\\/") + os.sep):
+                self.send_body("文件名不合法", 400, "text/plain; charset=utf-8")
+                return
             if blocked.is_blocked(final):
                 self.send_body("文件名不可用", 400, "text/plain; charset=utf-8")
                 return
@@ -1351,6 +1372,12 @@ class Handler(BaseHTTPRequestHandler):
                         final = cand
                         break
                     i += 1
+
+            final = os.path.realpath(final)
+            if final != target_real and not final.startswith(
+                    target_real.rstrip("\\/") + os.sep):
+                self.send_body("文件名不合法", 400, "text/plain; charset=utf-8")
+                return
 
             tmp = os.path.join(target_dir, ".upload-%s.tmp" % secrets.token_hex(6))
             remaining = length

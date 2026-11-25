@@ -101,35 +101,3 @@ jobs:
           overwrite_files: true
           files: release/*
 
-  normalize:
-    name: Normalize repository metadata
-    needs: release
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-      - name: Collapse history with clean author
-        run: |
-          git config user.name "Lucas-Yun"
-          git config user.email "200024866+Lucas-Yun@users.noreply.github.com"
-          touch .github/.history-normalized
-          git checkout --orphan clean-release
-          git add -A
-          git commit -m "FilePortal v1.0.0"
-          git push --force origin clean-release:main
-          git tag -f v1.0.0 HEAD
-          git push --force origin v1.0.0
-      - name: Remove old workflow runs
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          { gh api --paginate "repos/${{ github.repository }}/actions/runs?per_page=100" \
-              --jq ".workflow_runs[] | select(.id != ${GITHUB_RUN_ID}) | .id" || true; } |
-          while read -r run_id; do
-            gh api -X DELETE "repos/${{ github.repository }}/actions/runs/${run_id}" >/dev/null 2>&1 || true
-          done
-
-
-

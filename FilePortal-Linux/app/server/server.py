@@ -55,10 +55,9 @@ class BoundedServer(ThreadingHTTPServer):
         import ssl
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(certfile, keyfile or None)
-        try:
-            ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-        except AttributeError:
-            pass
+        # TLS 1.0 / 1.1 are deprecated; explicitly disable them and enforce 1.2+.
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+        ctx.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
         self.socket = ctx.wrap_socket(self.socket, server_side=True)
         self.tls_enabled = True
 

@@ -192,20 +192,20 @@ def resolve(rel, root=None):
         # 只在列表里不显示是不够的：直接拼 URL 也必须拒绝
         if p.lower() in HIDDEN_NAMES or p.startswith("~$"):
             return None
-    path = os.path.abspath(os.path.join(root, *parts)) if parts else root
     root_real = os.path.realpath(root)
-    path_real = os.path.realpath(path)
-    try:
-        if os.path.commonpath([root_real, path_real]) != root_real:
-            return None
-    except ValueError:
+    path_real = os.path.realpath(
+        os.path.abspath(os.path.join(root, *parts)) if parts else root)
+    # CodeQL-recognized containment guard: normalize first, then require the
+    # root itself or a direct child. commonpath alone is not recognized.
+    if path_real != root_real and not path_real.startswith(
+            root_real.rstrip("\\/") + os.sep):
         return None
     if is_self_dir(path_real, root):
         return None
     # 屏蔽清单：任何人、任何权限都取不到；命中目录时其下所有内容一并拒绝
-    if blocked.is_blocked(path) or blocked.is_blocked(path_real):
+    if blocked.is_blocked(path_real):
         return None
-    return path
+    return path_real
 
 
 # --------------------------------------------------------------------------- #
