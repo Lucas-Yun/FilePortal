@@ -144,21 +144,28 @@ def _pid_on_port(p=None):
             out = subprocess.run(cmd, capture_output=True, timeout=10).stdout.decode("utf-8", "ignore")
         except Exception:
             continue
-        for line in out.splitlines():
-            if "pid=" in line:
-                try:
-                    chunk = line.split("pid=", 1)[1].split(",", 1)[0]
-                    return int(chunk)
-                except ValueError:
-                    continue
-        if cmd[0] == "lsof":
-            for line in out.splitlines()[1:]:
+        if cmd[0] == "ss":
+            for line in out.splitlines():
                 parts = line.split()
-                if len(parts) >= 2:
+                if len(parts) < 4:
+                    continue
+                # ss 的 Local Address:Port 在第 4 列；必须先确认端口，
+                # 否则会把任意一个带 pid= 的进程当成目标。
+                if parts[3].rsplit(":", 1)[-1] != str(p):
+                    continue
+                if "pid=" in line:
                     try:
-                        return int(parts[1])
+                        return int(line.split("pid=", 1)[1].split(",", 1)[0])
                     except ValueError:
                         continue
+            continue
+        for line in out.splitlines()[1:]:
+            parts = line.split()
+            if len(parts) >= 2:
+                try:
+                    return int(parts[1])
+                except ValueError:
+                    continue
     return None
 
 
