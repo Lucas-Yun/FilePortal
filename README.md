@@ -532,7 +532,7 @@ zip -r ../FilePortal-Linux.zip . \
 1. 构建 Windows EXE；
 2. 打包 Linux ZIP；
 3. 生成 SHA256 校验文件；
-4. 创建/更新 `v1.0.0` Release 并上传资产。
+4. 创建/更新 `v1.0.2` Release 并上传资产。
 
 ## English Summary
 

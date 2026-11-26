@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 模块说明：HTTP/HTTPS 服务器、线程池、TLS 和优雅关闭
 """有界并发服务器：线程池 + 队列上限，人再多也不会把电脑拖垮。"""
 
 import threading

@@ -1,4 +1,4 @@
-# FilePortal v1.0.0
+# FilePortal v1.0.2
 
 A lightweight, self-hosted file portal with role-based access, online preview, ZIP packaging, recycle bin, shared cloud folders, and a built-in Chinese/English interface.
 
@@ -20,6 +20,14 @@ SHA-256 checksums are published next to each asset.
 5. Set the shared folder in **Admin → Settings** (portable builds default to `~/Documents/FilePortalShare`).
 
 Only the `Admin` account is enabled by default in the packaged builds. Study/Read roles can be created from the admin panel after first login.
+
+## Fixes in v1.0.2
+
+- Registration entry now opens the password-setup page first; the notice page is only shown from “未获得管理员审批？点击这里申请”.
+- Login session errors are always shown in the red error block, not the green info block.
+- Maintenance-mode recovery now redirects to `/`, so the browser no longer refreshes `/__update__/resume` and sees 404.
+- Admin save-and-restart works in packaged EXE builds; the new process waits for the old port and restarts itself.
+- Maintenance mode is bundled into the portable EXE, Linux package and GitHub source trees, with a browser-side admin password recovery form.
 
 ## Fixes in this build
 

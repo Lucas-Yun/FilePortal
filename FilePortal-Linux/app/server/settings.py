@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 模块说明：config.ini 读取、默认值、路径解析和整数范围
 """配置读取：所有可调参数都在程序目录的 config.ini 里，黑名单在 data/lists/blacklist/ 里。
 
 这个文件只负责「读 + 兜底」，日常改配置请直接改 config.ini，不用碰这里。
@@ -47,7 +48,7 @@ try:
 except OSError:
     pass
 
-SERVER_VERSION = "FilePortal/1.0"
+SERVER_VERSION = "FilePortal/1.0.2"
 
 
 def _load_session_secret():

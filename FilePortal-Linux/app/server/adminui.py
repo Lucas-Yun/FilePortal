@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 模块说明：管理后台页面、配置校验与写回、重启/维护模式入口
 """网页后台（配置界面）：只有用 Admin + 最高权限密码登录的人能看到和打开。
 
 里面能改的东西都落在项目根目录的文件里：
@@ -15,6 +16,7 @@ import tempfile
 import time
 
 from . import accounts, blocked, denylist, fsutil, sessions, settings, rules, zcache
+from . import update_mode
 
 # --------------------------------------------------------------------------- #
 # 可配置项（分节、键、标签、类型、说明）
@@ -104,6 +106,20 @@ PERM_KEYS = ["download", "preview", "zip", "upload", "mkdir", "rename", "delete"
 PERM_LABEL = {"download": "下载", "preview": "预览", "zip": "打包", "upload": "上传",
               "mkdir": "新建目录", "rename": "重命名", "delete": "删除"}
 
+# 后台页面用中文分节显示，config.ini 里是英文分节；写回时要落到真实分节，
+# 同时把历史遗留的中文分节一起更新，避免两份键互相覆盖。
+INI_SECTION_ALIASES = {
+    "服务器": "Server",
+    "下载": "Download",
+    "名单": "Lists",
+    "密码": "Passwords",
+    "防爆破": "Login protection",
+    "权限": "Permissions",
+    "页脚": "Footer",
+    "云盘": "Cloud",
+    "日志": "Cloud",
+}
+
 REQUIRE_RESTART = {"port", "host", "workers", "zip_slots", "upload_slots", "per_page",
                    "list_cache_seconds", "request_timeout", "https_port", "certfile",
                    "keyfile", "admin_name", "session_days", "login_max_fails",
@@ -146,7 +162,8 @@ def set_config_values(values):
 
     want = {}
     for (sec, key), val in values.items():
-        want.setdefault(sec.strip(), {})[key.strip().lower()] = "" if val is None else str(val)
+        sec = INI_SECTION_ALIASES.get(sec.strip(), sec.strip())
+        want.setdefault(sec, {})[key.strip().lower()] = "" if val is None else str(val)
 
     changed = 0
     cur = None
@@ -162,6 +179,7 @@ def set_config_values(values):
                     out.append("%s = %s" % (k, v))
                     changed += 1
             cur = m.group(1).strip()
+            cur = INI_SECTION_ALIASES.get(cur, cur)
             out.append(raw)
             continue
         if cur is not None and cur in want:
@@ -249,14 +267,26 @@ def write_blacklist(text_value):
 def apply_form(form):
     """把后台页面提交上来的东西写进文件。返回 (改了配置几项, 提示消息列表)"""
     values = {}
-    for sec, key, _label, _kind, _hint in FIELDS:
+    invalid = []
+    for sec, key, label, kind, _hint in FIELDS:
         name = "cfg|%s|%s" % (sec, key)
         if name not in form:
             continue
+        raw = (form[name] or "").strip()
+        if kind == "int" and raw and not raw.lstrip("-").isdigit():
+            invalid.append(label)
+            continue
         values[(sec, key)] = form[name]
-    changed = set_config_values(values)
-
     msgs = []
+    if invalid:
+        msgs.append("以下配置不是有效整数，已跳过：%s" % "、".join(invalid))
+    changed = 0
+    try:
+        changed = set_config_values(values)
+    except Exception as exc:  # noqa: BLE001
+        # 配置写盘失败不能让整个后台 500；把原因交给页面显示。
+        msgs.append("配置未保存：%s" % exc)
+
     # 规则
     if "rules_present" in form:
         new_rules = []
@@ -612,13 +642,21 @@ def do_account(op, form):
 
 def _preflight_compile():
     """重启前先做一次语法检查：新代码有语法错误就不动正在跑的服务。"""
+    # 单文件 EXE 的源码已经打进包，没有可写的 app.py/server 目录；
+    # 此时再做文件级 py_compile 必然失败，直接视为通过。
+    if getattr(sys, "frozen", False):
+        return True
     import py_compile
-    targets = [os.path.join(settings.PROJECT_DIR, "app.py")]
+    targets = [os.path.join(settings.PROJECT_DIR, "app.py"),
+               os.path.join(settings.PROJECT_DIR, "update_mode.py"),
+               os.path.join(settings.PROJECT_DIR, "update_server.py")]
     srv = os.path.join(settings.PROJECT_DIR, "server")
     for name in os.listdir(srv):
         if name.endswith(".py"):
             targets.append(os.path.join(srv, name))
     for path in targets:
+        if not os.path.exists(path):
+            continue
         try:
             py_compile.compile(path, doraise=True)
         except Exception as exc:  # noqa: BLE001
@@ -632,14 +670,27 @@ def _preflight_compile():
     return True
 
 
-def restart_service():
-    """重启服务：先语法检查，再由分离的小守护进程等端口释放、拉起 app.py，
-    并用 /healthz 轮询确认真的起来了；失败会写日志，不会假装成功。"""
+def enter_update_mode(delay=2.0):
+    """网页后台点「进入更新模式」：交给独立进程等响应发完再停服务、挂维护页。"""
+    return update_mode.spawn_enter(delay)
+
+
+def restart_service(old_port=None):
+    """重启服务：先做语法检查，再用“等旧端口释放后自行启动”的新进程接替。
+
+    源码版启动 app.py；单文件 EXE 启动自身并带 --restart-after-exit。
+    这样不需要 python -c 守护进程，Windows/Linux/便携版都能用。
+    old_port 传入当前实际监听端口，避免命令行 --port 覆盖配置时接替进程跑错端口。
+    """
     if not _preflight_compile():
+        return False
+    # 维护模式时先退出维护页；普通服务下 stop() 会直接返回 0，不会误杀。
+    if update_mode.stop() != 0:
         return False
     project = settings.PROJECT_DIR
     try:
-        port = int((settings._read_ini(settings.CONFIG_FILE).get("port") or settings.DEFAULT_PORT))
+        port = int(old_port or settings._read_ini(settings.CONFIG_FILE).get("port")
+                   or settings.DEFAULT_PORT)
     except Exception:  # noqa: BLE001
         port = settings.DEFAULT_PORT
     logdir = os.path.join(project, "runtime", "logs")
@@ -649,77 +700,30 @@ def restart_service():
         pass
     out_path = os.path.join(logdir, "_stdout.log")
     err_path = os.path.join(logdir, "_stderr.log")
-    restart_log = os.path.join(logdir, "_restart.log")
-    code = (
-        "import os, socket, subprocess, sys, time, urllib.request\n"
-        "project = %r\n"
-        "port = %d\n"
-        "python = sys.executable\n"
-        "out_path = %r\n"
-        "err_path = %r\n"
-        "restart_log = %r\n"
-        "flags = 0x00000008 | 0x00000200 | 0x08000000\n"
-        "def note(msg):\n"
-        "    try:\n"
-        "        with open(restart_log, 'a', encoding='utf-8') as fh:\n"
-        "            fh.write(time.strftime('%%Y-%%m-%%d %%H:%%M:%%S ') + msg + '\\n')\n"
-        "    except OSError:\n"
-        "        pass\n"
-        "def free():\n"
-        "    try:\n"
-        "        s = socket.create_connection(('127.0.0.1', port), timeout=0.4)\n"
-        "        s.close()\n"
-        "        return False\n"
-        "    except OSError:\n"
-        "        return True\n"
-        "def healthy():\n"
-        "    try:\n"
-        "        req = urllib.request.Request('http://127.0.0.1:%%d/healthz' %% port)\n"
-        "        with urllib.request.urlopen(req, timeout=2) as r:\n"
-        "            body = r.read(200).decode('utf-8', 'replace')\n"
-        "        return r.status == 200 and 'ok' in body.lower()\n"
-        "    except Exception:\n"
-        "        return False\n"
-        "for _ in range(80):\n"
-        "    if free():\n"
-        "        break\n"
-        "    time.sleep(0.25)\n"
-        "else:\n"
-        "    note('端口 %%d 一直没释放，放弃重启' %% port)\n"
-        "    raise SystemExit(1)\n"
-        "time.sleep(0.5)\n"
-        "for attempt in range(1, 4):\n"
-        "    out = open(out_path, 'ab')\n"
-        "    err = open(err_path, 'ab')\n"
-        "    p = subprocess.Popen([python, 'app.py'], cwd=project, creationflags=flags,\n"
-        "                         stdout=out, stderr=err, close_fds=True)\n"
-        "    out.close(); err.close()\n"
-        "    note('第 %%d 次拉取 app.py，pid=%%s' %% (attempt, p.pid))\n"
-        "    for _ in range(30):\n"
-        "        time.sleep(1)\n"
-        "        if healthy():\n"
-        "            note('健康检查通过，服务已在端口 %%d' %% port)\n"
-        "            raise SystemExit(0)\n"
-        "        if p.poll() is not None:\n"
-        "            note('进程提前退出，returncode=%%s' %% p.returncode)\n"
-        "            break\n"
-        "    if p.poll() is None:\n"
-        "        p.terminate()\n"
-        "        try:\n"
-        "            p.wait(3)\n"
-        "        except Exception:\n"
-        "            p.kill()\n"
-        "    note('第 %%d 次启动未通过健康检查' %% attempt)\n"
-        "    time.sleep(1.5)\n"
-        "note('重启失败：请手动运行 launcher.bat，并查看 runtime/logs/_stderr.log')\n"
-        "raise SystemExit(2)\n"
-    ) % (project, port, out_path, err_path, restart_log)
+    if getattr(sys, "frozen", False):
+        cmd = [sys.executable, "--restart-after-exit", str(port)]
+    else:
+        cmd = [sys.executable, os.path.join(project, "app.py"),
+               "--restart-after-exit", str(port)]
+    kwargs = {
+        "cwd": project,
+        "stdin": subprocess.DEVNULL,
+        "stdout": open(out_path, "ab"),
+        "stderr": open(err_path, "ab"),
+        "close_fds": True,
+    }
+    if os.name == "nt":
+        kwargs["creationflags"] = 0x00000008 | 0x00000200 | 0x08000000
     try:
-        subprocess.Popen([sys.executable, "-c", code], cwd=project,
-                         creationflags=0x00000008 | 0x00000200 | 0x08000000,
-                         close_fds=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.Popen(cmd, **kwargs)
     except Exception:  # noqa: BLE001
         return False
+    finally:
+        for key in ("stdout", "stderr"):
+            try:
+                kwargs[key].close()
+            except Exception:
+                pass
     return True
 
 
@@ -800,6 +804,29 @@ textarea{width:100%;min-height:120px;padding:9px 11px;border:1px solid #d7e0e8;b
 .acct .meta{color:#93a1ae;font-size:12px;flex:1}
 .acct .btn{padding:5px 12px;font-size:12.5px}
 .sub{color:#8d9aa6;font-size:12px;margin:8px 0 4px}
+.btn.update{background:#0d8f7a}
+.modal-mask{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;
+  padding:18px;background:rgba(5,25,45,.45);backdrop-filter:blur(2px)}
+.modal{width:100%;max-width:390px;background:#fff;border-radius:14px;padding:20px 20px 16px;
+  box-shadow:0 24px 60px rgba(3,25,45,.28)}
+.modal h3{margin:0 0 6px;font-size:17px;color:#0b4f86}
+.modal p{margin:0 0 14px;color:#65798a;font-size:13px;line-height:1.7}
+.modal label{display:block;font-size:12.5px;color:#3f5668;margin:0 0 5px}
+.modal input[type=password]{width:100%;padding:10px 11px;border:1px solid #d7e0e8;border-radius:9px;
+  font-size:14px;outline:none}
+.modal input[type=password]:focus{border-color:#0f6fbd;box-shadow:0 0 0 3px rgba(15,111,189,.12)}
+.modal .err{min-height:18px;margin:7px 0 0;color:#c62828;font-size:12.5px}
+.modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:10px}
+.modal-actions .btn{padding:8px 16px;font-size:13px}
+.busy-mask{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;
+  padding:20px;background:rgba(6,35,60,.5)}
+.busy{max-width:360px;background:#fff;border-radius:14px;padding:22px;text-align:center;
+  box-shadow:0 24px 60px rgba(3,25,45,.28)}
+.busy h3{margin:0 0 7px;color:#0b4f86;font-size:17px}
+.busy p{margin:0;color:#687c8d;font-size:13px;line-height:1.8}
+.spin{width:30px;height:30px;margin:0 auto 12px;border:3px solid #dbeaf4;border-top-color:#0f6fbd;
+  border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
 @media (max-width:640px){
   .row label{flex:1 0 100%}.row .hint{padding-left:0}
   .rules .nm,.rules .pw,.rules .rt{flex:1 1 100%}
@@ -879,7 +906,8 @@ def build_admin_page(grant=None, saved=0, warn=""):
 <header>
   <h1>管理控制台 · 文件服务平台</h1>
   <a href="/browse">返回文件列表</a>
-  <button type="button" onclick="doRestart(this)">重启服务</button>
+  <button type="button" class="btn update" onclick="enterUpdateMode(this)">进入更新模式</button>
+  <button type="button" onclick="openRestart(false)">重启服务</button>
   <a href="/logout">注销</a>
 </header>
 <div class="wrap">
@@ -890,7 +918,7 @@ def build_admin_page(grant=None, saved=0, warn=""):
 <div class="card"><h2>登录规则<span class="tip">修改后于下次登录生效，无需重启</span></h2>
  <div class="body rules">
   <div style="color:#8d9aa6;font-size:12.5px;margin:-4px 0 10px">
-   按自上而下顺序匹配，首条命中即生效。姓名填写 <b>*</b> 表示全部访问者，填写 <b>!张三</b> 表示排除该访问者。
+   按自上而下顺序匹配，首条命中即生效。姓名填写 <b>*</b> 表示全部访问者，填写 <b>!云博晟</b> 表示排除该访问者。
    目录填写相对存储根的路径（如 <b>文件/学习资料</b>），留空表示全部目录。
   </div>
   <div id="rulesBox">%(rules)s</div>
@@ -916,7 +944,7 @@ def build_admin_page(grant=None, saved=0, warn=""):
 </div>
 <div class="acts" style="padding:0 0 20px">
  <button class="btn" type="submit">保存全部</button>
- <button class="btn gray" type="button" onclick="doRestart(this)">保存后重启</button>
+ <button class="btn gray" type="button" onclick="openRestart(true)">保存后重启</button>
 </div>
 </form>
 <div class="foot">当前身份：%(who)s · 规则文件 rules.json · 配置文件 config.ini</div>
@@ -960,41 +988,133 @@ function expandChips(btn){
   btn.remove();
 }
 document.getElementById('mainForm').addEventListener('submit', collectRules);
-function doRestart(btn){
-  var f = document.getElementById('mainForm');
-  collectRules();
-  if (!confirm('确认保存并重启？正在上传或下载的任务将中断。')) return;
-  btn.disabled = true; btn.textContent = '正在重启服务…';
-  var data = new FormData(f);
-  data.set('do_restart', '1');
-  fetch('/admin/save', {method:'POST', body:data}).then(function(r){ return r.json(); }).then(function(j){
-    if (j && j.ok === false) {
-      alert('重启前检查未通过，服务没有停：' + ((j.msgs || []).join('；') || '请查看 runtime/logs 目录'));
-      btn.disabled = false; btn.textContent = '保存并重启';
+
+var restartSaveFirst = false;
+function openRestart(saveFirst){
+  restartSaveFirst = !!saveFirst;
+  document.getElementById('restartTitle').textContent = restartSaveFirst ? '保存并重启服务' : '重启服务';
+  document.getElementById('restartHint').textContent = restartSaveFirst
+    ? '先保存当前页面上的全部修改，再重启服务。正在上传或下载的任务会中断。'
+    : '只重启服务，不保存页面上的修改。正在上传或下载的任务会中断。';
+  document.getElementById('restartPw').value = '';
+  document.getElementById('restartErr').textContent = '';
+  document.getElementById('restartMask').style.display = 'flex';
+  document.getElementById('restartPw').focus();
+}
+function closeRestart(){
+  document.getElementById('restartMask').style.display = 'none';
+  document.getElementById('restartOk').disabled = false;
+  document.getElementById('restartOk').textContent = '确认重启';
+}
+function showBusy(title, text){
+  document.getElementById('busyTitle').textContent = title || '正在处理…';
+  document.getElementById('busyText').textContent = text || '';
+  document.getElementById('busyMask').style.display = 'flex';
+}
+function pollHealth(label){
+  var t0 = Date.now();
+  (function poll(){
+    fetch('/healthz', {cache:'no-store'}).then(function(r){
+      return r.ok ? r.json() : null;
+    }).then(function(j){
+      if (j && j.ok) { alert(label || '服务已重启'); location.reload(); return; }
+      if (Date.now() - t0 < 60000) { setTimeout(poll, 800); return; }
+      document.getElementById('busyMask').style.display = 'none';
+      alert('60 秒内没有等到服务恢复，请手动运行 launcher.bat，并查看 runtime/logs/_restart.log');
+    }).catch(function(){
+      if (Date.now() - t0 < 60000) { setTimeout(poll, 800); return; }
+      document.getElementById('busyMask').style.display = 'none';
+      alert('60 秒内没有等到服务恢复，请手动运行 launcher.bat，并查看 runtime/logs/_restart.log');
+    });
+  })();
+}
+function submitRestart(){
+  var pw = document.getElementById('restartPw').value.trim();
+  var err = document.getElementById('restartErr');
+  var ok = document.getElementById('restartOk');
+  if (!pw) { err.textContent = '请输入管理员密码。'; return; }
+  ok.disabled = true; ok.textContent = '正在重启…'; err.textContent = '';
+  var request;
+  if (restartSaveFirst) {
+    collectRules();
+    var data = new FormData(document.getElementById('mainForm'));
+    data.set('do_restart', '1');
+    data.set('admin_password', pw);
+    request = fetch('/admin/save', {method:'POST', body:data});
+  } else {
+    request = fetch('/admin/restart', {
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'password=' + encodeURIComponent(pw)
+    });
+  }
+  request.then(function(r){
+    return r.json().then(function(j){ return {status:r.status, body:j}; });
+  }).then(function(res){
+    var j = res.body || {};
+    if (res.status >= 400 || j.ok === false) {
+      err.textContent = (j.msg || (j.msgs || []).join('；') || '管理员密码不正确，服务没有重启。');
+      ok.disabled = false; ok.textContent = '确认重启';
       return;
     }
-    setTimeout(function(){
+    closeRestart();
+    showBusy('服务正在重启…', '端口重新监听后会自动刷新页面，请不要重复点击。');
+    setTimeout(function(){ pollHealth('服务已重启'); }, 1200);
+  }).catch(function(){
+    err.textContent = '请求失败，服务未重启。';
+    ok.disabled = false; ok.textContent = '确认重启';
+  });
+}
+function enterUpdateMode(btn){
+  if (!confirm('确认进入更新模式？\\n\\n文件服务会立即停止，网页会显示“正在更新”；修改完文件后双击 launcher.bat 即可恢复。')) return;
+  btn.disabled = true;
+  btn.textContent = '正在切换…';
+  fetch('/admin/update-mode', {method:'POST'}).then(function(r){ return r.json(); }).then(function(j){
+    if (j && j.ok) {
+      showBusy('正在进入更新模式…', '文件服务即将停止；维护页启动后会自动打开。请稍候。');
       var t0 = Date.now();
-      (function poll(){
-        fetch('/healthz', {cache:'no-store'}).then(function(r){
+      (function waitMaintenance(){
+        fetch('/__update__/status', {cache:'no-store'}).then(function(r){
           return r.ok ? r.json() : null;
-        }).then(function(j){
-          if (j && j.ok) { alert('服务已重启'); location.reload(); return; }
-          if (Date.now() - t0 < 60000) setTimeout(poll, 800);
-          else { alert('60 秒内没有等到服务恢复，请手动运行 launcher.bat 并查看 runtime/logs/_restart.log'); btn.disabled = false; btn.textContent = '保存并重启'; }
+        }).then(function(s){
+          if (s && s.mode === 'maintenance') { location.href = '/'; return; }
+          if (Date.now() - t0 < 15000) { setTimeout(waitMaintenance, 600); return; }
+          location.href = '/';
         }).catch(function(){
-          if (Date.now() - t0 < 60000) setTimeout(poll, 800);
-          else { alert('60 秒内没有等到服务恢复，请手动运行 launcher.bat 并查看 runtime/logs/_restart.log'); btn.disabled = false; btn.textContent = '保存并重启'; }
+          if (Date.now() - t0 < 15000) { setTimeout(waitMaintenance, 600); return; }
+          location.href = '/';
         });
       })();
-    }, 1500);
+    } else {
+      btn.disabled = false; btn.textContent = '进入更新模式';
+      alert((j && (j.msg || (j.msgs || []).join('；'))) || '进入更新模式失败，请查看 runtime/logs。');
+    }
   }).catch(function(){
-    btn.disabled = false; btn.textContent = '保存并重启';
-    alert('保存请求失败，服务未重启');
+    btn.disabled = false; btn.textContent = '进入更新模式';
+    alert('请求失败，未能进入更新模式。');
   });
-  return false;
 }
 </script>
+<div id="restartMask" class="modal-mask" role="dialog" aria-modal="true" aria-labelledby="restartTitle">
+ <div class="modal">
+  <h3 id="restartTitle">重启服务</h3>
+  <p id="restartHint">只重启服务，不保存页面上的修改。正在上传或下载的任务会中断。</p>
+  <label for="restartPw">管理员密码</label>
+  <input id="restartPw" type="password" autocomplete="current-password" placeholder="请输入 config.ini 中的管理员密码">
+  <div id="restartErr" class="err"></div>
+  <div class="modal-actions">
+   <button type="button" class="btn gray" onclick="closeRestart()">取消</button>
+   <button type="button" class="btn" id="restartOk" onclick="submitRestart()">确认重启</button>
+  </div>
+ </div>
+</div>
+<div id="busyMask" class="busy-mask" role="status" aria-live="polite">
+ <div class="busy">
+  <div class="spin"></div>
+  <h3 id="busyTitle">正在处理…</h3>
+  <p id="busyText"></p>
+ </div>
+</div>
 </body></html>""" % {
         "css": CSS,
         "flash": flash,

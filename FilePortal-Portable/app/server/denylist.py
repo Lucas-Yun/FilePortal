@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 模块说明：黑名单文件合并、缓存与姓名查询
 """Blacklist (denied visitor names).
 
 The blacklist is a directory, just like the whitelist. Any supported file placed

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 模块说明：服务入口：解析启动参数、做路径校验并启动 HTTP/HTTPS 服务
 """文件服务平台 —— 入口。把本机的一个文件夹投射成网页，手机 / 平板 / 任意电脑都能访问。
 
     python app.py                       # 用默认配置启动（端口 8000）
@@ -30,6 +31,7 @@ from server.server import BoundedServer, shutdown
 
 
 def local_ips():
+    """枚举本机可用的局域网 IPv4 地址，用于启动提示和二维码。"""
     ips = []
     try:
         hostname = socket.gethostname()
@@ -60,12 +62,24 @@ def port_available(port):
         return True
 
 
+def wait_port_free(port, timeout=25.0):
+    """等待旧服务释放端口；用于网页后台重启后的接替进程。"""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if port_available(port):
+            return True
+        time.sleep(0.25)
+    return port_available(port)
+
+
 def default_workers():
+    """按 CPU 核数给出默认并发线程数，限制在 8~24。"""
     cpu = os.cpu_count() or 4
     return max(8, min(24, cpu * 2))
 
 
 def main():
+    """启动文件服务；支持命令行覆盖端口、根目录和密码。"""
     ap = argparse.ArgumentParser(description="网页版文件投射服务")
     ap.add_argument("--root", default=DEFAULT_ROOT, help="要投射的文件夹")
     ap.add_argument("--port", type=int, default=DEFAULT_PORT, help="端口，默认 8000")
@@ -73,7 +87,14 @@ def main():
     ap.add_argument("--password", default=DEFAULT_PASSWORD, help="访问密码")
     ap.add_argument("--workers", type=int, default=WORKERS or default_workers(),
                     help="同时处理的请求数上限（默认按 CPU 自动算，一般 8~32）")
+    # 网页后台重启专用：旧进程退出后，这个新进程先等端口释放再启动。
+    # 单文件 EXE 也能用，避免依赖 python -c 守护进程。
+    ap.add_argument("--restart-after-exit", type=int, default=0, metavar="OLD_PORT",
+                    help=argparse.SUPPRESS)
     args = ap.parse_args()
+
+    if args.restart_after_exit:
+        wait_port_free(args.restart_after_exit)
 
     safe, why, normalized = validate_projection_root(args.root)
     if not safe:

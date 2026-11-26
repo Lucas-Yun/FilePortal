@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 模块说明：Linux 启动器：启动前检查和后台服务拉起
 """Linux launcher/console for FilePortal.
 
 The Linux edition is source-based: data, assets and docs stay in ``app/``.

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 模块说明：HTTP 路由、登录鉴权、上传下载、预览与后台接口
 """HTTP 请求处理：路由与各个接口的实现。"""
 
 import hashlib
@@ -31,7 +32,6 @@ from . import thumbs
 from . import rules as rulesmod
 from . import roster
 from . import sessions
-from . import i18n
 
 MAX_FORM_BYTES = 2 * 1024 * 1024          # 登录/后台等普通表单上限
 MAX_AVATAR_BYTES = 12 * 1024 * 1024       # 头像请求体硬上限（真正的配置上限另算）
@@ -39,6 +39,7 @@ from . import dltoken
 from . import adminui
 from . import accounts
 from . import trash
+from . import update_mode
 
 # 下载并发闸门：全站同时最多这么多条下载连接，超了排队等（等不到就 503）。
 # 两台设备同时下同一个文件、配置 32 的话，服务端只能喂 32 条，自然就各摊一半，
@@ -237,14 +238,7 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---------------- 基础 ----------------
     def log_message(self, fmt, *args):
-        # 打包成 noconsole EXE 后 sys.stderr 可能是 None，不能直接写，否则每个请求都会在响应前崩溃。
-        stream = sys.stderr or sys.stdout
-        if stream is None:
-            return
-        try:
-            stream.write("%s  %s\n" % (time.strftime("%H:%M:%S"), fmt % args))
-        except Exception:
-            pass
+        sys.stderr.write("%s  %s\n" % (time.strftime("%H:%M:%S"), fmt % args))
 
     def _cookies(self):
         raw = self.headers.get("Cookie") or ""
@@ -351,6 +345,17 @@ class Handler(BaseHTTPRequestHandler):
         """是不是后台身份（Admin + 最高权限密码）"""
         return bool(self._me().get("admin"))
 
+    def admin_password_ok(self, value):
+        """网页重启用的二次确认密码：admin_password，空则回退最高权限密码。"""
+        given = (value or "").strip().casefold()
+        if not given:
+            return False
+        for candidate in (settings.PW_ADMIN, settings.PW_FULL):
+            candidate = (candidate or "").strip().casefold()
+            if candidate and hmac.compare_digest(given, candidate):
+                return True
+        return False
+
     def root(self):
         """当前访问人能看到的根目录（规则里写了子目录就限制在那里；云空间用户是自己的目录）"""
         me = self._me()
@@ -369,8 +374,6 @@ class Handler(BaseHTTPRequestHandler):
         self.send_body(msg, 403, "text/plain; charset=utf-8")
 
     def send_body(self, body, status=200, ctype="text/html; charset=utf-8", extra=None):
-        if isinstance(body, str) and ctype.lower().startswith("text/html"):
-            body = i18n.render(body, i18n.current_lang(self.headers.get("Cookie")))
         if isinstance(body, str):
             body = body.encode("utf-8")
         self.send_response(status)
@@ -381,7 +384,6 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
-        self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
         self.send_header("Content-Security-Policy",
                          "default-src 'self'; img-src 'self' data: blob:; "
                          "media-src 'self' blob:; style-src 'self' 'unsafe-inline'; "
@@ -465,8 +467,14 @@ class Handler(BaseHTTPRequestHandler):
             if self.is_authed():
                 self.redirect("/browse")
             else:
-                note = (qs.get("msg") or [""])[0] or getattr(self, "_session_error", "")
-                self.send_body(build_login(note=note))
+                # ?msg= 只用于“已退出登录”这类中性提示（绿色）；
+                # 会话失效、被顶下线等属于错误，必须走红色 error 区域，
+                # 不能再混进绿色 note（之前正是这里导致同一句话有时绿有时红）。
+                info = (qs.get("msg") or [""])[0]
+                if info:
+                    self.send_body(build_login(note=info))
+                else:
+                    self.send_body(build_login(error=getattr(self, "_session_error", "")))
             return
         if path == "/logout":
             me = self._session_info(self._cookies().get("fs_session", "")) or {}
@@ -658,7 +666,7 @@ class Handler(BaseHTTPRequestHandler):
                 if me.get("cloud"):
                     avatar = "/avatar"
                 elif (me.get("name") or "") == (NAME_FULL or "").strip():
-                    avatar = "/img/lock.svg"
+                    avatar = "/img/logo.png"
                 self.send_body(build_page(rel.strip("/"), target, sort_key, order, kw, page_no,
                                           root=self.root(), role=self.role(),
                                           perms=me.get("perms"), admin=self.admin(),
@@ -835,20 +843,6 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urllib.parse.urlsplit(self.path)
         path = parsed.path
-        # 跨站请求防护：现代浏览器会带 Sec-Fetch-Site。管理后台的写操作只允许同源页面提交。
-        fetch_site = (self.headers.get("Sec-Fetch-Site") or "").strip().lower()
-        if fetch_site and fetch_site not in ("same-origin", "none"):
-            self.send_body("跨站请求被拒绝", 403, "text/plain; charset=utf-8")
-            return
-        origin = (self.headers.get("Origin") or "").strip()
-        if origin and not fetch_site:
-            try:
-                if urllib.parse.urlsplit(origin).netloc != (self.headers.get("Host") or ""):
-                    self.send_body("跨站请求被拒绝", 403, "text/plain; charset=utf-8")
-                    return
-            except ValueError:
-                self.send_body("请求来源不合法", 400, "text/plain; charset=utf-8")
-                return
         try:
             # 普通表单先卡请求体大小，避免公开的登录/注册接口被超大 body 占满内存。
             # 上传和头像走各自的上限检查，不在这里拦。
@@ -898,16 +892,60 @@ class Handler(BaseHTTPRequestHandler):
                           'msg="%s"' % msg.replace('"', "'"))
                 self.redirect("/admin?msg=" + urllib.parse.quote(msg))
                 return
+            if path == "/admin/restart":
+                if not self.admin():
+                    self.send_json({"ok": False, "msg": "权限不足"}, 403)
+                    return
+                form = self.read_form()
+                if not self.admin_password_ok(form.get("password") or form.get("admin_password")):
+                    write_log("WARN", self.who(), self._client_ip(), "ADMIN_RESTART_DENY", "",
+                              "reason=bad_password")
+                    self.send_json({"ok": False, "msg": "管理员密码不正确，服务没有重启。"}, 403)
+                    return
+                ok = adminui.restart_service(
+                    getattr(self.server, "server_address", (None, None))[1])
+                write_log("INFO" if ok else "WARN", self.who(), self._client_ip(),
+                          "ADMIN_RESTART", "", "ok=%s source=button" % (1 if ok else 0))
+                self.send_json({"ok": ok,
+                                "msg": "服务正在重启，请稍候。" if ok else
+                                       "重启前检查未通过，服务没有停，请查看 runtime/logs。"})
+                if ok:
+                    def _bye():
+                        time.sleep(0.8)
+                        os._exit(0)
+                    threading.Thread(target=_bye, daemon=True).start()
+                return
+
+            if path == "/admin/update-mode":
+                if not self.admin():
+                    self.send_json({"ok": False, "msg": "权限不足"}, 403)
+                    return
+                ok = adminui.enter_update_mode(delay=2.0)
+                write_log("INFO" if ok else "WARN", self.who(), self._client_ip(),
+                          "ADMIN_UPDATE_MODE", "", "ok=%s" % (1 if ok else 0))
+                self.send_json({"ok": ok,
+                                "msg": "正在切换到更新模式…" if ok else
+                                       "无法启动更新模式，请查看 runtime/logs。"},
+                               200 if ok else 500)
+                return
+
             if path == "/admin/save":
                 if not self.admin():
                     self.send_body("权限不足", 403, "text/plain; charset=utf-8")
                     return
                 form = self.read_form()
+                restarting = str(form.get("do_restart") or "") in ("1", "on", "true")
+                if restarting and not self.admin_password_ok(
+                        form.get("admin_password") or form.get("password")):
+                    write_log("WARN", self.who(), self._client_ip(), "ADMIN_RESTART_DENY", "",
+                              "reason=bad_password source=save")
+                    self.send_json({"ok": False, "msgs": ["管理员密码不正确，未保存也未重启。"]}, 403)
+                    return
                 me = self._me() or {}      # 先记下自己是谁（改完规则后旧会话就失效了）
                 changed, msgs = adminui.apply_form(form)
-                restarting = str(form.get("do_restart") or "") in ("1", "on", "true")
                 if restarting:
-                    ok = adminui.restart_service()
+                    ok = adminui.restart_service(
+                        getattr(self.server, "server_address", (None, None))[1])
                     write_log("INFO", self.who(), self._client_ip(), "ADMIN_RESTART", "",
                               'ok=%s changed=%d' % (1 if ok else 0, changed))
                     self.send_json({"ok": ok, "changed": changed, "msgs": msgs})
@@ -1689,28 +1727,20 @@ class Handler(BaseHTTPRequestHandler):
         store_ext = IMAGE_EXT | VIDEO_EXT | AUDIO_EXT | {"zip", "rar", "7z", "apk", "exe", "iso", "pdf"}
         try:
             with zipfile.ZipFile(writer, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as zf:
-                root_real = os.path.realpath(self.root())
                 for path, top in items:
-                    if blocked.is_blocked(path) or os.path.islink(path):
+                    if blocked.is_blocked(path):
                         continue
                     if os.path.isdir(path):
                         for dirpath, dirnames, filenames in os.walk(path):
                             dirnames[:] = [d for d in dirnames
                                            if d.lower() not in HIDDEN_NAMES
-                                           and not blocked.is_blocked(os.path.join(dirpath, d))
-                                           and not os.path.islink(os.path.join(dirpath, d))]
+                                           and not blocked.is_blocked(os.path.join(dirpath, d))]
                             rel_dir = os.path.relpath(dirpath, path)
                             for fn in filenames:
                                 if fn.lower() in HIDDEN_NAMES or fn.startswith("~$"):
                                     continue
                                 full = os.path.join(dirpath, fn)
-                                if blocked.is_blocked(full) or os.path.islink(full):
-                                    continue
-                                try:
-                                    real = os.path.realpath(full)
-                                    if os.path.commonpath([root_real, real]) != root_real:
-                                        continue
-                                except ValueError:
+                                if blocked.is_blocked(full):
                                     continue
                                 if rel_dir == ".":
                                     # 根目录下的文件必须放在同名的顶层文件夹里，

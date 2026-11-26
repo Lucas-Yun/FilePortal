@@ -30,6 +30,7 @@ jobs:
             --name FilePortal `
             --paths app `
             --hidden-import app --hidden-import tray --hidden-import console `
+            --hidden-import update_server --hidden-import update_mode `
             --collect-submodules server `
             --add-data "app/config.ini;." `
             --add-data "app/assets;assets" `
@@ -92,9 +93,9 @@ jobs:
         run: ls -lh release
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.0
+          tag_name: v1.0.2
           target_commitish: main
-          name: FilePortal v1.0.0
+          name: FilePortal v1.0.2
           body_path: .github/release-body.md
           generate_release_notes: true
           fail_on_unmatched_files: true

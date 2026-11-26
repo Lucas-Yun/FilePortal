@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 模块说明：Windows 单文件便携版启动器：部署数据目录并分发各运行模式
 """FilePortal Portable entry.
 
 One executable. First run creates a FilePortalData folder next to the EXE
@@ -241,12 +242,17 @@ def main() -> int:
 
     raw = list(sys.argv[1:])
     mode = "default"
-    for flag in ("--service", "--tray", "--ensure", "--console"):
+    for flag in ("--service", "--tray", "--ensure", "--console",
+                 "--update-mode", "--maintenance-server"):
         if flag in raw:
             mode = flag[2:]
             break
-    # app.py / tray.py / console.py don't know our mode flag; remove it.
-    args = [a for a in raw if a not in ("--service", "--tray", "--ensure", "--console")]
+    # 网页后台重启的新进程：强制走服务模式，但保留 --restart-after-exit 给 app.py。
+    if "--restart-after-exit" in raw:
+        mode = "service"
+    # app.py / tray.py / console.py 不认识的模式参数在这里移除。
+    args = [a for a in raw if a not in ("--service", "--tray", "--ensure", "--console",
+                                        "--update-mode", "--maintenance-server")]
     sys.argv = [sys.argv[0]] + args
 
     if mode == "service":
@@ -260,6 +266,12 @@ def main() -> int:
         return ensure_service()
     if mode == "console":
         return _run_console()
+    if mode == "update-mode":
+        from update_mode import main as update_main
+        return update_main(args) or 0
+    if mode == "maintenance-server":
+        from update_server import main as maintenance_main
+        return maintenance_main(args) or 0
 
     # Default double-click: ensure service, open the browser, then run the tray
     # in this same process. Spawning a separate --tray child would let the

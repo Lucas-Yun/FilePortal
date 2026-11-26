@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 模块说明：Linux 服务管理：启动、停止、重启和状态查询
 """Small POSIX helpers for the Linux edition: PID lookup, start/stop, openers."""
 import os
 import re
