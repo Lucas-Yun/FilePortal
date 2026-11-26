@@ -27,6 +27,15 @@ def _bundle_dir() -> Path:
     return Path(getattr(sys, "_MEIPASS", _app_dir()))
 
 
+def _child_env():
+    """清理 PyInstaller 父进程的临时 Python 路径，避免子进程拿旧解包目录当 stdlib。"""
+    env = os.environ.copy()
+    for key in ("PYTHONHOME", "PYTHONPATH", "PYTHONEXECUTABLE", "_MEIPASS2"):
+        env.pop(key, None)
+    env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+    return env
+
+
 def _exe_dir() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
@@ -211,7 +220,7 @@ def _spawn(mode: str) -> None:
         flags = 0x00000008 | 0x00000200 | 0x08000000  # DETACHED | NEW_GROUP | NO_WINDOW
     subprocess.Popen(cmd, cwd=cwd, stdin=subprocess.DEVNULL,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                     close_fds=True, creationflags=flags)
+                     close_fds=True, creationflags=flags, env=_child_env())
 
 
 def _allocation_console() -> None:

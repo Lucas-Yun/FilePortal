@@ -282,6 +282,21 @@ def _clear_state():
             pass
 
 
+def child_env():
+    """给子进程一份干净环境：去掉 PyInstaller 父进程的 PYTHONHOME/PYTHONPATH。
+
+    单文件版父进程会把临时解包目录写进这两个变量；子进程再启动同一 EXE 时
+    若继承它们，会拿旧目录当 stdlib，直接启动失败。所有拉起 EXE/python 的
+    地方都应使用本函数。
+    """
+    env = os.environ.copy()
+    for key in ("PYTHONHOME", "PYTHONPATH", "PYTHONEXECUTABLE", "_MEIPASS2"):
+        env.pop(key, None)
+    # 明确让 PyInstaller 子进程重新解包，不能复用即将退出的父进程 _MEI 目录。
+    env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+    return env
+
+
 def start_update_server():
     os.makedirs(LOG_DIR, exist_ok=True)
     try:
@@ -297,7 +312,8 @@ def start_update_server():
     try:
         proc = subprocess.Popen(
             cmd, cwd=BASE, stdin=subprocess.DEVNULL, stdout=logf,
-            stderr=subprocess.STDOUT, close_fds=True, creationflags=FLAGS)
+            stderr=subprocess.STDOUT, close_fds=True, creationflags=FLAGS,
+            env=child_env())
     except Exception as exc:
         print("  [ERROR] Could not start the maintenance server: %s" % exc)
         return None
@@ -404,7 +420,7 @@ def start_file_service():
         proc = subprocess.Popen(
             cmd, cwd=BASE, stdin=subprocess.DEVNULL,
             stdout=logf, stderr=subprocess.STDOUT, close_fds=True,
-            creationflags=FLAGS)
+            creationflags=FLAGS, env=child_env())
         return proc.pid
     except Exception as exc:
         print("  [ERROR] Could not start the file service: %s" % exc)
@@ -470,7 +486,8 @@ def spawn_enter(delay=2.0):
         subprocess.Popen(
             cmd,
             cwd=BASE, stdin=subprocess.DEVNULL, stdout=logf,
-            stderr=subprocess.STDOUT, close_fds=True, creationflags=FLAGS)
+            stderr=subprocess.STDOUT, close_fds=True, creationflags=FLAGS,
+            env=child_env())
         return True
     except Exception:
         return False

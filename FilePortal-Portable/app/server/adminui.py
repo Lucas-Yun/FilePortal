@@ -711,6 +711,7 @@ def restart_service(old_port=None):
         "stdout": open(out_path, "ab"),
         "stderr": open(err_path, "ab"),
         "close_fds": True,
+        "env": update_mode.child_env(),
     }
     if os.name == "nt":
         kwargs["creationflags"] = 0x00000008 | 0x00000200 | 0x08000000
